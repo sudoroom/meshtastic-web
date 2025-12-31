@@ -4,136 +4,338 @@
     <title>Meshtastic Web Interface</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: monospace;
-            padding: 20px;
             background: #1e1e1e;
             color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
         }
-        h1 { color: #4ec9b0; }
-        .tabs {
+        .container {
             display: flex;
-            gap: 5px;
-            margin-bottom: 10px;
+            flex-direction: column;
+            height: 100vh;
         }
-        .tab {
-            padding: 10px 20px;
+        .header {
             background: #2d2d30;
+            padding: 15px 20px;
+            border-bottom: 1px solid #555;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        h1 {
+            color: #4ec9b0;
+            font-size: 1.5em;
+            margin-right: auto;
+        }
+        .mode-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .mode-btn {
+            padding: 8px 20px;
+            background: #3c3c3c;
+            color: #d4d4d4;
             border: 1px solid #555;
             cursor: pointer;
-            color: #d4d4d4;
+            transition: all 0.2s;
         }
-        .tab:hover {
-            background: #3c3c3c;
+        .mode-btn:hover {
+            background: #4a4a4a;
         }
-        .tab.active {
+        .mode-btn.active {
             background: #0e639c;
             border-color: #0e639c;
         }
-        .tab-content {
-            display: none;
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
         }
-        .tab-content.active {
-            display: block;
+        .sidebar {
+            width: 250px;
+            background: #252526;
+            border-right: 1px solid #555;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #555;
+            font-weight: bold;
+            color: #4ec9b0;
+        }
+        .sidebar-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #3c3c3c;
+            transition: background 0.2s;
+        }
+        .sidebar-item:hover {
+            background: #2d2d30;
+        }
+        .sidebar-item.active {
+            background: #0e639c;
+            border-left: 3px solid #4ec9b0;
+        }
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            padding: 15px 20px;
+            background: #2d2d30;
+            border-bottom: 1px solid #555;
+            font-weight: bold;
+            color: #4ec9b0;
         }
         .messages-container {
-            border: 1px solid #555;
-            height: 400px;
-            overflow-y: scroll;
-            padding: 10px;
-            margin-bottom: 20px;
-            background: #252526;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #1e1e1e;
         }
         .message {
-            margin: 5px 0;
-            padding: 5px;
+            margin: 10px 0;
+            padding: 8px 12px;
             background: #2d2d30;
             border-left: 3px solid #4ec9b0;
+            border-radius: 3px;
         }
         .message.dm {
             border-left-color: #ce9178;
+        }
+        .message.outgoing {
+            border-left-color: #569cd6;
         }
         .message span[title] {
             cursor: help;
             text-decoration: underline dotted;
             text-decoration-color: #888;
         }
+        .message-input-area {
+            padding: 15px 20px;
+            background: #2d2d30;
+            border-top: 1px solid #555;
+            display: flex;
+            gap: 10px;
+        }
         #messageInput {
-            width: 70%;
-            padding: 8px;
+            flex: 1;
+            padding: 10px;
             background: #3c3c3c;
             border: 1px solid #555;
             color: #d4d4d4;
+            font-family: monospace;
         }
-        button {
-            padding: 8px 15px;
+        #messageInput:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+        .send-btn {
+            padding: 10px 20px;
             background: #0e639c;
             color: white;
             border: none;
             cursor: pointer;
+            font-family: monospace;
+            transition: background 0.2s;
         }
-        button:hover {
+        .send-btn:hover {
             background: #1177bb;
+        }
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
-    <h1>🛰️ Meshtastic Messages</h1>
+    <div class="container">
+        <div class="header">
+            <h1>🛰️ Meshtastic</h1>
+            <div class="mode-buttons">
+                <button class="mode-btn active" onclick="switchMode('channels')">📡 Channels</button>
+                <button class="mode-btn" onclick="switchMode('dms')">💬 DMs</button>
+            </div>
+        </div>
 
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('all')">All Messages</div>
-        <div class="tab" onclick="switchTab('channel')">Channel</div>
-        <div class="tab" onclick="switchTab('dms')">Direct Messages</div>
-    </div>
+        <div class="main-content">
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header" id="sidebar-header">Channels</div>
+                <div id="sidebar-items">
+                    <!-- Sidebar items will be populated dynamically -->
+                </div>
+            </div>
 
-    <div id="tab-all" class="tab-content active">
-        <div id="messages-all" class="messages-container"></div>
+            <div class="chat-area">
+                <div class="chat-header" id="chat-header">Select a channel or DM</div>
+                <div class="messages-container" id="messages">
+                    <div class="empty-state">Select a channel or DM to start messaging</div>
+                </div>
+                <div class="message-input-area">
+                    <input type="text" id="messageInput" placeholder="Type a message...">
+                    <button class="send-btn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="tab-channel" class="tab-content">
-        <div id="messages-channel" class="messages-container"></div>
-    </div>
-    <div id="tab-dms" class="tab-content">
-        <div id="messages-dms" class="messages-container"></div>
-    </div>
-
-    <div style="margin-bottom: 10px;">
-        <label for="recipient">To: </label>
-        <select id="recipient" style="padding: 8px; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4;">
-            <!-- Channels and nodes will be populated dynamically -->
-        </select>
-    </div>
-    <input type="text" id="messageInput" placeholder="Type message...">
-    <button onclick="sendMessage()">Send</button>
 
     <script>
         const socket = io();
-        const messagesAll = document.getElementById('messages-all');
-        const messagesChannel = document.getElementById('messages-channel');
-        const messagesDMs = document.getElementById('messages-dms');
-        const recipientSelect = document.getElementById('recipient');
+        const messagesContainer = document.getElementById('messages');
+        const chatHeader = document.getElementById('chat-header');
+        const sidebarHeader = document.getElementById('sidebar-header');
+        const sidebarItems = document.getElementById('sidebar-items');
+        const messageInput = document.getElementById('messageInput');
 
-        // Store our own node number to filter out echo messages
+        // State management
+        let currentMode = 'channels'; // 'channels' or 'dms'
+        let currentSelection = null; // channel index or node number
         let myNodeNumber = null;
-        // Store channel name map for display
         let channelMap = {};
-        // Store node information map for display
         let nodeMap = {};
+        let allMessages = []; // Store all messages for filtering
 
-        // Tab switching function
-        function switchTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        // Switch between Channels and DMs mode
+        function switchMode(mode) {
+            currentMode = mode;
+            currentSelection = null;
 
-            // Show selected tab
-            document.getElementById(`tab-${tabName}`).classList.add('active');
+            // Update button states
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
-            // Scroll to bottom of active tab
-            const activeMessages = document.querySelector(`#tab-${tabName} .messages-container`);
-            if (activeMessages) {
-                activeMessages.scrollTop = activeMessages.scrollHeight;
+            // Update sidebar header
+            sidebarHeader.textContent = mode === 'channels' ? 'Channels' : 'Direct Messages';
+
+            // Rebuild sidebar
+            rebuildSidebar();
+
+            // Clear chat area
+            chatHeader.textContent = mode === 'channels' ? 'Select a channel' : 'Select a DM';
+            messagesContainer.innerHTML = '<div class="empty-state">Select a ' + (mode === 'channels' ? 'channel' : 'DM') + ' to start messaging</div>';
+        }
+
+        // Rebuild sidebar based on current mode
+        function rebuildSidebar() {
+            sidebarItems.innerHTML = '';
+
+            if (currentMode === 'channels') {
+                // Add channel items
+                Object.keys(channelMap).forEach(index => {
+                    const item = document.createElement('div');
+                    item.className = 'sidebar-item';
+                    item.textContent = `📡 ${channelMap[index]}`;
+                    item.onclick = () => selectChannel(parseInt(index));
+                    sidebarItems.appendChild(item);
+                });
+            } else {
+                // Add DM items - get unique DM participants
+                const dmParticipants = new Set();
+                allMessages.forEach(msg => {
+                    if (msg.is_dm) {
+                        // Add both sender and recipient to see all DM conversations
+                        if (msg.from !== myNodeNumber) dmParticipants.add(msg.from);
+                        if (msg.to !== myNodeNumber && msg.to !== 4294967295) dmParticipants.add(msg.to);
+                    }
+                });
+
+                dmParticipants.forEach(nodeNum => {
+                    const item = document.createElement('div');
+                    item.className = 'sidebar-item';
+                    item.textContent = `💬 ${getNodeDisplayName(nodeNum)}`;
+                    item.onclick = () => selectDM(nodeNum);
+                    sidebarItems.appendChild(item);
+                });
+
+                if (dmParticipants.size === 0) {
+                    const empty = document.createElement('div');
+                    empty.style.padding = '20px';
+                    empty.style.color = '#666';
+                    empty.textContent = 'No DM conversations yet';
+                    sidebarItems.appendChild(empty);
+                }
             }
+        }
+
+        // Select a channel
+        function selectChannel(channelIndex) {
+            currentSelection = channelIndex;
+
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update chat header
+            chatHeader.textContent = `📡 ${channelMap[channelIndex]}`;
+
+            // Filter and display messages for this channel
+            displayMessages(allMessages.filter(msg =>
+                !msg.is_dm && msg.channel_index === channelIndex
+            ));
+        }
+
+        // Select a DM conversation
+        function selectDM(nodeNum) {
+            currentSelection = nodeNum;
+
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update chat header
+            chatHeader.textContent = `💬 ${getNodeDisplayName(nodeNum)}`;
+
+            // Filter and display messages for this DM
+            displayMessages(allMessages.filter(msg =>
+                msg.is_dm && (msg.from === nodeNum || msg.to === nodeNum)
+            ));
+        }
+
+        // Display messages in the chat area
+        function displayMessages(messages) {
+            messagesContainer.innerHTML = '';
+
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = '<div class="empty-state">No messages yet</div>';
+                return;
+            }
+
+            messages.forEach(msg => {
+                const msgEl = document.createElement('div');
+                msgEl.className = 'message';
+
+                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
+                const senderName = getNodeDisplayName(msg.from);
+                const senderTooltip = getNodeTooltip(msg.from);
+
+                // Mark outgoing messages
+                if (msg.from === myNodeNumber) {
+                    msgEl.classList.add('outgoing');
+                } else if (msg.is_dm) {
+                    msgEl.classList.add('dm');
+                }
+
+                msgEl.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
+                messagesContainer.appendChild(msgEl);
+            });
+
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         // Format Unix timestamp to readable time
@@ -188,66 +390,29 @@
         socket.on('message_history', (data) => {
             console.log(`Loading message history: ${data.total_count} total messages in database`);
 
-            // Load all messages
-            data.all.forEach(msg => {
-                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
-                const senderName = getNodeDisplayName(msg.from);
-                const senderTooltip = getNodeTooltip(msg.from);
-                const msgEl = document.createElement('div');
-                msgEl.className = msg.is_dm ? 'message dm' : 'message';
-                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
-                messagesAll.appendChild(msgEl);
-            });
+            // Store all messages
+            allMessages = data.all;
 
-            // Load channel messages
-            data.channel.forEach(msg => {
-                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
-                const senderName = getNodeDisplayName(msg.from);
-                const senderTooltip = getNodeTooltip(msg.from);
-                const msgEl = document.createElement('div');
-                msgEl.className = 'message';
-                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
-                messagesChannel.appendChild(msgEl);
-            });
+            // Rebuild sidebar to show DM conversations
+            rebuildSidebar();
 
-            // Load DM messages
-            data.dms.forEach(msg => {
-                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const senderName = getNodeDisplayName(msg.from);
-                const senderTooltip = getNodeTooltip(msg.from);
-                const msgEl = document.createElement('div');
-                msgEl.className = 'message dm';
-                msgEl.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
-                messagesDMs.appendChild(msgEl);
-            });
+            // Auto-select first channel if in channels mode
+            if (currentMode === 'channels' && Object.keys(channelMap).length > 0) {
+                selectChannel(parseInt(Object.keys(channelMap)[0]));
+            }
 
-            // Scroll to bottom of all tabs
-            messagesAll.scrollTop = messagesAll.scrollHeight;
-            messagesChannel.scrollTop = messagesChannel.scrollHeight;
-            messagesDMs.scrollTop = messagesDMs.scrollHeight;
-
-            console.log(`Loaded ${data.all.length} messages into UI`);
+            console.log(`Loaded ${data.all.length} messages`);
         });
 
         socket.on('channel_list', (data) => {
-            // Build channel map for message display
+            // Build channel map
             channelMap = {};
             data.channels.forEach(channel => {
                 channelMap[channel.index] = channel.name;
             });
 
-            // Clear and rebuild dropdown with channels first
-            recipientSelect.innerHTML = '';
-
-            // Add channel options
-            data.channels.forEach(channel => {
-                const option = document.createElement('option');
-                option.value = `channel:${channel.index}`;
-                option.textContent = `📡 ${channel.name}`;
-                recipientSelect.appendChild(option);
-            });
+            // Rebuild sidebar
+            rebuildSidebar();
 
             console.log(`Loaded ${data.channels.length} channels`);
         });
@@ -262,26 +427,6 @@
                 };
             });
 
-            // Add node options (DMs) after channels
-            data.nodes.forEach(node => {
-                const option = document.createElement('option');
-                const shortName = node.user?.shortName;
-                const longName = node.user?.longName;
-                let userName;
-                if (shortName && longName) {
-                    userName = `${shortName} (${longName}) - Node ${node.num}`;
-                } else if (longName) {
-                    userName = `${longName} - Node ${node.num}`;
-                } else if (shortName) {
-                    userName = `${shortName} - Node ${node.num}`;
-                } else {
-                    userName = `Node ${node.num}`;
-                }
-                option.value = node.num;
-                option.textContent = `💬 DM: ${userName}`;
-                recipientSelect.appendChild(option);
-            });
-
             console.log(`Loaded ${data.nodes.length} nodes into nodeMap`);
         });
 
@@ -292,94 +437,94 @@
                 return;
             }
 
-            const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
-            const channelName = channelMap[data.channel] || `Channel ${data.channel}`;
-            const senderName = getNodeDisplayName(data.from);
-            const senderTooltip = getNodeTooltip(data.from);
-
             // Determine if this is a DM or channel message
-            // In Meshtastic, broadcast messages have 'to' field as a broadcast address (like 0xffffffff)
             const isDM = data.to !== 4294967295 && data.to !== '^all'; // 0xffffffff = 4294967295
+            const channelIndex = data.channel || 0;
 
-            // Create message element for "All" tab
-            const msgElAll = document.createElement('div');
-            msgElAll.className = isDM ? 'message dm' : 'message';
-            if (isDM) {
-                msgElAll.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
-            } else {
-                msgElAll.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
-            }
-            messagesAll.appendChild(msgElAll);
-            messagesAll.scrollTop = messagesAll.scrollHeight;
+            // Add to allMessages array
+            const newMsg = {
+                from: data.from,
+                to: data.to,
+                text: data.text,
+                time: data.time,
+                is_dm: isDM,
+                channel_index: channelIndex
+            };
+            allMessages.push(newMsg);
 
-            // Create message element for specific tab (Channel or DMs)
-            const msgElSpecific = document.createElement('div');
-            msgElSpecific.className = isDM ? 'message dm' : 'message';
-            if (isDM) {
-                msgElSpecific.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
-            } else {
-                msgElSpecific.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            // Update sidebar if this is a new DM conversation
+            if (isDM && currentMode === 'dms') {
+                rebuildSidebar();
             }
 
-            if (isDM) {
-                messagesDMs.appendChild(msgElSpecific);
-                messagesDMs.scrollTop = messagesDMs.scrollHeight;
-            } else {
-                messagesChannel.appendChild(msgElSpecific);
-                messagesChannel.scrollTop = messagesChannel.scrollHeight;
+            // If we're currently viewing this channel or DM, refresh the display
+            if (currentSelection !== null) {
+                if (currentMode === 'channels' && !isDM && channelIndex === currentSelection) {
+                    // Refresh current channel view
+                    displayMessages(allMessages.filter(msg =>
+                        !msg.is_dm && msg.channel_index === currentSelection
+                    ));
+                } else if (currentMode === 'dms' && isDM && (data.from === currentSelection || data.to === currentSelection)) {
+                    // Refresh current DM view
+                    displayMessages(allMessages.filter(msg =>
+                        msg.is_dm && (msg.from === currentSelection || msg.to === currentSelection)
+                    ));
+                }
             }
+
+            console.log(`Received message: ${isDM ? 'DM' : 'channel'} from ${data.from}`);
         });
 
         function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            const recipient = recipientSelect.value;
+            const text = messageInput.value.trim();
 
-            if (text) {
-                socket.emit('send_message', {
-                    text: text,
-                    recipient: recipient
-                });
-
-                // Show your own message immediately
-                const isDM = !recipient.startsWith('channel:');
-                const recipientText = recipientSelect.options[recipientSelect.selectedIndex].text.replace('📡 ', '').replace('💬 DM: ', '');
-                const now = new Date();
-                const timeStr = now.toLocaleString('en-US', {
-                    timeZone: 'America/Los_Angeles',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                });
-                const messageText = `[${timeStr}] You → ${recipientText}: ${text}`;
-
-                // Add to "All" tab
-                const msgElAll = document.createElement('div');
-                msgElAll.className = 'message';
-                msgElAll.style.borderLeftColor = '#ce9178';
-                msgElAll.textContent = messageText;
-                messagesAll.appendChild(msgElAll);
-                messagesAll.scrollTop = messagesAll.scrollHeight;
-
-                // Add to specific tab
-                const msgElSpecific = document.createElement('div');
-                msgElSpecific.className = 'message';
-                msgElSpecific.style.borderLeftColor = '#ce9178';
-                msgElSpecific.textContent = messageText;
-
-                if (isDM) {
-                    messagesDMs.appendChild(msgElSpecific);
-                    messagesDMs.scrollTop = messagesDMs.scrollHeight;
-                } else {
-                    messagesChannel.appendChild(msgElSpecific);
-                    messagesChannel.scrollTop = messagesChannel.scrollHeight;
-                }
-
-                input.value = '';
+            // Check if a channel or DM is selected
+            if (!currentSelection && currentSelection !== 0) {
+                alert('Please select a channel or DM first');
+                return;
             }
+
+            if (!text) return;
+
+            // Determine recipient based on current mode and selection
+            let recipient;
+            if (currentMode === 'channels') {
+                recipient = `channel:${currentSelection}`;
+            } else {
+                recipient = currentSelection; // node number
+            }
+
+            // Send the message
+            socket.emit('send_message', {
+                text: text,
+                recipient: recipient
+            });
+
+            // Add to allMessages array immediately
+            const now = Math.floor(Date.now() / 1000);
+            const newMsg = {
+                from: myNodeNumber,
+                to: currentMode === 'channels' ? 4294967295 : currentSelection,
+                text: text,
+                time: now,
+                is_dm: currentMode === 'dms',
+                channel_index: currentMode === 'channels' ? currentSelection : 0
+            };
+            allMessages.push(newMsg);
+
+            // Refresh the current view to show the sent message
+            if (currentMode === 'channels') {
+                displayMessages(allMessages.filter(msg =>
+                    !msg.is_dm && msg.channel_index === currentSelection
+                ));
+            } else {
+                displayMessages(allMessages.filter(msg =>
+                    msg.is_dm && (msg.from === currentSelection || msg.to === currentSelection)
+                ));
+            }
+
+            // Clear input
+            messageInput.value = '';
         }
 
         document.getElementById('messageInput').addEventListener('keypress', (e) => {

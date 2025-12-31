@@ -10,7 +10,7 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - 🛰️ Auto-updating list of visible nodes
 - 🌐 Access from any device on your network
 - 🔊 Text-to-speech for DMs and non-MediumFast channels (using gspeak)
-- 📑 Tabbed interface separating All Messages, Channel, and Direct Messages
+- 🎨 Two-column UI with sidebar navigation for channels and DMs
 - 💾 SQLite message history - messages persist across page refreshes
 - 🏷️ Channel names displayed in messages for easy identification
 
@@ -92,15 +92,22 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
 
 ## Usage
 
+- **Interface Layout:**
+  - Click "📡 Channels" or "💬 DMs" buttons at the top to switch modes
+  - Sidebar shows available channels or DM conversations
+  - Click a sidebar item to view that conversation
+  - Messages appear in the main chat area on the right
+
 - **Sending Messages:**
-  - Select recipient from dropdown (any configured channel or specific node for DMs)
+  - Select a channel or DM from the sidebar
   - Type your message and hit Send or press Enter
-  - The dropdown automatically populates with all enabled channels on your device
+  - Messages appear immediately in the chat area
 
 - **Viewing Messages:**
   - Incoming messages appear automatically in real-time
-  - Messages show channel name, timestamp, sender, and text
-  - Use tabs to filter: All Messages, Channel messages, or Direct Messages
+  - Messages show timestamp, sender name (with tooltip for full details), and text
+  - Channel mode: Shows only messages from the selected channel
+  - DM mode: Shows only messages to/from the selected person
   - Message history is saved and loads automatically on page refresh
 
 - **Text-to-Speech:**
@@ -123,14 +130,15 @@ pip install -r requirements.txt
 - Make sure you're in the `dialout` group: `groups | grep dialout`
 - Log out and back in after adding yourself to the group
 
-**No channels showing in dropdown**
+**No channels showing in sidebar**
 - Wait a moment for the interface to connect to your device
 - Check that your Meshtastic device has channels configured
 - Check the browser console and Flask logs for errors
 
-**No nodes showing in dropdown**
-- Wait a minute for your device to hear from other nodes on the mesh
-- The list auto-refreshes every 30 seconds
+**No DM conversations showing**
+- DM conversations only appear after you've sent or received at least one DM
+- Switch to DMs mode and the sidebar will show all your conversations
+- The list updates automatically when new DMs arrive
 
 **Messages not persisting**
 - Check that the database file `meshtastic_messages.db` is being created
@@ -166,6 +174,8 @@ meshtastic-web/
 
 3. **Frontend (index.html):**
    - Real-time bidirectional communication via Socket.IO
-   - Dynamically populates dropdown with channels and nodes
-   - Displays messages with channel names and timestamps
+   - Two-column layout with sidebar navigation
+   - Mode switching between channels and DMs
+   - Filters messages by selected channel or DM conversation
+   - Displays sender names with tooltips showing full node details
    - Persists across page refreshes by loading from database
