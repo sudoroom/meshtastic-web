@@ -61,6 +61,21 @@
         const messagesDiv = document.getElementById('messages');
         const recipientSelect = document.getElementById('recipient');
 
+        // Format Unix timestamp to readable time
+        function formatTime(unixTime) {
+            const date = new Date(unixTime * 1000);
+            const options = {
+                timeZone: 'America/Los_Angeles',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            return date.toLocaleString('en-US', options);
+        }
+
         socket.on('connect', () => {
             console.log('Connected to server');
             socket.emit('get_nodes');  // Request node list on connect
@@ -86,7 +101,8 @@
         socket.on('new_message', (data) => {
             const msgEl = document.createElement('div');
             msgEl.className = 'message';
-            msgEl.textContent = `[${data.time}] From ${data.from}: ${data.text}`;
+            const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
+            msgEl.textContent = `[${timeStr}] From ${data.from}: ${data.text}`;
             messagesDiv.appendChild(msgEl);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         });
@@ -107,7 +123,17 @@
                 msgEl.className = 'message';
                 msgEl.style.borderLeftColor = '#ce9178';
                 const recipientText = recipient === 'channel' ? 'Channel' : recipientSelect.options[recipientSelect.selectedIndex].text.replace('💬 DM: ', '');
-                msgEl.textContent = `[sent to ${recipientText}] You: ${text}`;
+                const now = new Date();
+                const timeStr = now.toLocaleString('en-US', {
+                    timeZone: 'America/Los_Angeles',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                msgEl.textContent = `[${timeStr}] You → ${recipientText}: ${text}`;
                 messagesDiv.appendChild(msgEl);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
