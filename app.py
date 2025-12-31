@@ -29,9 +29,11 @@ def on_receive(packet, interface):
             text_to_speak = message_data['text']
             # Try espeak first, fallback to spd-say if not available
             try:
-                subprocess.run(['espeak', text_to_speak], check=False)
+                # -s 150 sets speed to 150 words per minute (default is 175)
+                subprocess.run(['espeak', '-s', '150', text_to_speak], check=False)
             except FileNotFoundError:
-                subprocess.run(['spd-say', text_to_speak], check=False)
+                # -r -30 reduces rate by 30% for spd-say
+                subprocess.run(['spd-say', '-r', '-30', text_to_speak], check=False)
         except Exception as e:
             print(f"Error speaking message: {e}")
 
