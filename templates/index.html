@@ -91,6 +91,7 @@
             // Add node options
             data.nodes.forEach(node => {
                 console.log('Node data:', node);
+                console.log('User object:', node.user);
                 const option = document.createElement('option');
                 const shortName = node.user?.shortName;
                 const longName = node.user?.longName;
