@@ -300,9 +300,13 @@
             // Update chat header
             chatHeader.textContent = `💬 ${getNodeDisplayName(nodeNum)}`;
 
-            // Filter and display messages for this DM
+            // Filter and display messages for this DM conversation
+            // Show messages between me and the selected node
             displayMessages(allMessages.filter(msg =>
-                msg.is_dm && (msg.from === nodeNum || msg.to === nodeNum)
+                msg.is_dm && (
+                    (msg.from === myNodeNumber && msg.to === nodeNum) ||
+                    (msg.from === nodeNum && msg.to === myNodeNumber)
+                )
             ));
         }
 
@@ -464,11 +468,18 @@
                     displayMessages(allMessages.filter(msg =>
                         !msg.is_dm && msg.channel_index === currentSelection
                     ));
-                } else if (currentMode === 'dms' && isDM && (data.from === currentSelection || data.to === currentSelection)) {
-                    // Refresh current DM view
-                    displayMessages(allMessages.filter(msg =>
-                        msg.is_dm && (msg.from === currentSelection || msg.to === currentSelection)
-                    ));
+                } else if (currentMode === 'dms' && isDM) {
+                    // Check if this message is part of the currently viewed DM conversation
+                    if ((data.from === myNodeNumber && data.to === currentSelection) ||
+                        (data.from === currentSelection && data.to === myNodeNumber)) {
+                        // Refresh current DM view
+                        displayMessages(allMessages.filter(msg =>
+                            msg.is_dm && (
+                                (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                                (msg.from === currentSelection && msg.to === myNodeNumber)
+                            )
+                        ));
+                    }
                 }
             }
 
@@ -519,7 +530,10 @@
                 ));
             } else {
                 displayMessages(allMessages.filter(msg =>
-                    msg.is_dm && (msg.from === currentSelection || msg.to === currentSelection)
+                    msg.is_dm && (
+                        (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                        (msg.from === currentSelection && msg.to === myNodeNumber)
+                    )
                 ));
             }
 
