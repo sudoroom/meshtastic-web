@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import meshtastic
@@ -29,7 +28,7 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def handle_connect(auth=None):  # Add auth parameter
+def handle_connect(auth=None):
     global interface
     if interface is None:
         # Subscribe to message receive events
