@@ -283,7 +283,12 @@
 
             // Update sidebar active state
             document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-            event.target.classList.add('active');
+            // Find and activate the correct sidebar item
+            const sidebarItem = Array.from(document.querySelectorAll('.sidebar-item'))
+                .find(item => item.textContent.includes(channelMap[channelIndex]));
+            if (sidebarItem) {
+                sidebarItem.classList.add('active');
+            }
 
             // Update chat header
             chatHeader.textContent = `📡 ${channelMap[channelIndex]}`;
@@ -300,7 +305,13 @@
 
             // Update sidebar active state
             document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-            event.target.classList.add('active');
+            // Find and activate the sidebar item for this DM
+            const nodeDisplayName = getNodeDisplayName(nodeNum);
+            const sidebarItem = Array.from(document.querySelectorAll('.sidebar-item'))
+                .find(item => item.textContent.includes(nodeDisplayName));
+            if (sidebarItem) {
+                sidebarItem.classList.add('active');
+            }
 
             // Update chat header
             chatHeader.textContent = `💬 ${getNodeDisplayName(nodeNum)}`;
@@ -395,6 +406,10 @@
         socket.on('my_node_number', (data) => {
             myNodeNumber = data.node_number;
             console.log(`My node number: ${myNodeNumber}`);
+            // Rebuild sidebar now that we have our node number
+            if (allMessages.length > 0) {
+                rebuildSidebar();
+            }
         });
 
         socket.on('message_history', (data) => {
@@ -403,8 +418,10 @@
             // Store all messages
             allMessages = data.all;
 
-            // Rebuild sidebar to show DM conversations
-            rebuildSidebar();
+            // Rebuild sidebar to show DM conversations (if we have our node number)
+            if (myNodeNumber !== null) {
+                rebuildSidebar();
+            }
 
             // Auto-select first channel if in channels mode
             if (currentMode === 'channels' && Object.keys(channelMap).length > 0) {
