@@ -4,15 +4,17 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 
 ## Features
 
-- 📡 View incoming messages in real-time
-- 💬 Send messages to any configured channel or DM specific nodes
-- 📻 Multi-channel support - automatically detects and lists all configured channels
-- 🛰️ Auto-updating list of visible nodes
-- 🌐 Access from any device on your network
-- 🔊 Text-to-speech for DMs and non-MediumFast channels (using gspeak)
-- 🎨 Two-column UI with sidebar navigation for channels and DMs
-- 💾 SQLite message history - messages persist across page refreshes
-- 🏷️ Channel names displayed in messages for easy identification
+- 📡 **Real-time messaging** - View incoming messages instantly
+- 💬 **Direct Messages & Channel Chat** - Send messages to any configured channel or DM specific nodes
+- 📻 **Multi-channel support** - Automatically detects and lists all configured channels from your device
+- 🛰️ **Auto-updating node list** - See all visible nodes with their short names, long names, and IDs
+- 🌐 **Network accessible** - Access from any device on your network
+- 🔊 **Text-to-speech** - Optional audio announcements for DMs and non-MediumFast channels (using gspeak)
+- 🎨 **Modern two-column UI** - Clean sidebar navigation to switch between channels and DMs
+- 💾 **SQLite message history** - All messages persist across page refreshes
+- 🏷️ **Smart message display** - Channel names, timestamps, and sender info with hover tooltips
+- 🔍 **Filtered conversations** - View only messages from the selected channel or DM
+- 🎯 **Clean DM organization** - DM sidebar shows only your conversations with other nodes
 
 ## Setup
 
@@ -105,10 +107,11 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
 
 - **Viewing Messages:**
   - Incoming messages appear automatically in real-time
-  - Messages show timestamp, sender name (with tooltip for full details), and text
-  - Channel mode: Shows only messages from the selected channel
-  - DM mode: Shows only messages to/from the selected person
+  - Messages show timestamp, sender name (hover for full details), and text
+  - **Channel mode**: Shows only messages from the selected channel
+  - **DM mode**: Shows only messages in the conversation with the selected person
   - Message history is saved and loads automatically on page refresh
+  - Outgoing messages have a blue left border, incoming DMs have an orange border
 
 - **Text-to-Speech:**
   - If `gspeak` is installed, DMs and non-MediumFast channels will be read aloud

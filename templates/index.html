@@ -307,15 +307,12 @@
 
             // Filter and display messages for this DM conversation
             // Show messages between me and the selected node
-            console.log(`Selecting DM with node ${nodeNum}, myNodeNumber is ${myNodeNumber}`);
             const filteredMessages = allMessages.filter(msg =>
                 msg.is_dm && (
                     (msg.from === myNodeNumber && msg.to === nodeNum) ||
                     (msg.from === nodeNum && msg.to === myNodeNumber)
                 )
             );
-            console.log(`Found ${filteredMessages.length} messages in DM conversation`);
-            console.log(`All DM messages:`, allMessages.filter(msg => msg.is_dm));
             displayMessages(filteredMessages);
         }
 
@@ -402,12 +399,9 @@
 
         socket.on('message_history', (data) => {
             console.log(`Loading message history: ${data.total_count} total messages in database`);
-            console.log(`My node number at history load: ${myNodeNumber}`);
 
             // Store all messages
             allMessages = data.all;
-
-            console.log(`Sample messages:`, allMessages.slice(0, 3));
 
             // Rebuild sidebar to show DM conversations
             rebuildSidebar();
