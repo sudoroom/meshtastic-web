@@ -91,7 +91,18 @@
             // Add node options
             data.nodes.forEach(node => {
                 const option = document.createElement('option');
-                const userName = node.user?.longName || node.user?.shortName || `Node ${node.num}`;
+                const shortName = node.user?.shortName;
+                const longName = node.user?.longName;
+                let userName;
+                if (shortName && longName) {
+                    userName = `${shortName} (${longName}) - Node ${node.num}`;
+                } else if (longName) {
+                    userName = `${longName} - Node ${node.num}`;
+                } else if (shortName) {
+                    userName = `${shortName} - Node ${node.num}`;
+                } else {
+                    userName = `Node ${node.num}`;
+                }
                 option.value = node.num;
                 option.textContent = `💬 DM: ${userName}`;
                 recipientSelect.appendChild(option);
