@@ -94,7 +94,7 @@
     <div style="margin-bottom: 10px;">
         <label for="recipient">To: </label>
         <select id="recipient" style="padding: 8px; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4;">
-            <option value="channel">📡 MediumFast Channel (Public)</option>
+            <!-- Channels and nodes will be populated dynamically -->
         </select>
     </div>
     <input type="text" id="messageInput" placeholder="Type message...">
@@ -109,6 +109,8 @@
 
         // Store our own node number to filter out echo messages
         let myNodeNumber = null;
+        // Store channel name map for display
+        let channelMap = {};
 
         // Tab switching function
         function switchTab(tabName) {
@@ -145,6 +147,7 @@
         socket.on('connect', () => {
             console.log('Connected to server');
             socket.emit('get_nodes');  // Request node list on connect
+            socket.emit('get_channels');  // Request channel list on connect
             socket.emit('get_message_history');  // Request message history on connect
             socket.emit('get_my_node_number');  // Request our own node number
         });
@@ -195,13 +198,29 @@
             console.log(`Loaded ${data.all.length} messages into UI`);
         });
 
-        socket.on('node_list', (data) => {
-            // Clear current DM options (keep channel option)
-            const channelOption = recipientSelect.querySelector('option[value="channel"]');
-            recipientSelect.innerHTML = '';
-            recipientSelect.appendChild(channelOption);
+        socket.on('channel_list', (data) => {
+            // Build channel map for message display
+            channelMap = {};
+            data.channels.forEach(channel => {
+                channelMap[channel.index] = channel.name;
+            });
 
-            // Add node options
+            // Clear and rebuild dropdown with channels first
+            recipientSelect.innerHTML = '';
+
+            // Add channel options
+            data.channels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = `channel:${channel.index}`;
+                option.textContent = `📡 ${channel.name}`;
+                recipientSelect.appendChild(option);
+            });
+
+            console.log(`Loaded ${data.channels.length} channels`);
+        });
+
+        socket.on('node_list', (data) => {
+            // Add node options (DMs) after channels
             data.nodes.forEach(node => {
                 const option = document.createElement('option');
                 const shortName = node.user?.shortName;
@@ -230,7 +249,8 @@
             }
 
             const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
-            const messageText = `[${timeStr}] From ${data.from}: ${data.text}`;
+            const channelName = channelMap[data.channel] || `Channel ${data.channel}`;
+            const messageText = `[${timeStr}] [${channelName}] From ${data.from}: ${data.text}`;
 
             // Determine if this is a DM or channel message
             // In Meshtastic, broadcast messages have 'to' field as a broadcast address (like 0xffffffff)
@@ -269,8 +289,8 @@
                 });
 
                 // Show your own message immediately
-                const isDM = recipient !== 'channel';
-                const recipientText = recipient === 'channel' ? 'Channel' : recipientSelect.options[recipientSelect.selectedIndex].text.replace('💬 DM: ', '');
+                const isDM = !recipient.startsWith('channel:');
+                const recipientText = recipientSelect.options[recipientSelect.selectedIndex].text.replace('📡 ', '').replace('💬 DM: ', '');
                 const now = new Date();
                 const timeStr = now.toLocaleString('en-US', {
                     timeZone: 'America/Los_Angeles',

@@ -5,11 +5,14 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 ## Features
 
 - 📡 View incoming messages in real-time
-- 💬 Send messages to the MediumFast channel or DM specific nodes
+- 💬 Send messages to any configured channel or DM specific nodes
+- 📻 Multi-channel support - automatically detects and lists all configured channels
 - 🛰️ Auto-updating list of visible nodes
 - 🌐 Access from any device on your network
 - 🔊 Text-to-speech for DMs and non-MediumFast channels (using gspeak)
 - 📑 Tabbed interface separating All Messages, Channel, and Direct Messages
+- 💾 SQLite message history - messages persist across page refreshes
+- 🏷️ Channel names displayed in messages for easy identification
 
 ## Setup
 
@@ -89,11 +92,20 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
 
 ## Usage
 
-- Select recipient from dropdown (channel or specific node)
-- Type your message and hit Send or press Enter
-- Incoming messages appear automatically in real-time
-- Use tabs to filter messages: All Messages, Channel (MediumFast), or Direct Messages
-- If `gspeak` is installed, DMs and other channels will be read aloud (MediumFast channel is silent due to high traffic)
+- **Sending Messages:**
+  - Select recipient from dropdown (any configured channel or specific node for DMs)
+  - Type your message and hit Send or press Enter
+  - The dropdown automatically populates with all enabled channels on your device
+
+- **Viewing Messages:**
+  - Incoming messages appear automatically in real-time
+  - Messages show channel name, timestamp, sender, and text
+  - Use tabs to filter: All Messages, Channel messages, or Direct Messages
+  - Message history is saved and loads automatically on page refresh
+
+- **Text-to-Speech:**
+  - If `gspeak` is installed, DMs and non-MediumFast channels will be read aloud
+  - MediumFast channel (channel 0) is silent due to high traffic
 
 ## Recreating the Virtual Environment
 
@@ -111,17 +123,49 @@ pip install -r requirements.txt
 - Make sure you're in the `dialout` group: `groups | grep dialout`
 - Log out and back in after adding yourself to the group
 
+**No channels showing in dropdown**
+- Wait a moment for the interface to connect to your device
+- Check that your Meshtastic device has channels configured
+- Check the browser console and Flask logs for errors
+
 **No nodes showing in dropdown**
 - Wait a minute for your device to hear from other nodes on the mesh
 - The list auto-refreshes every 30 seconds
+
+**Messages not persisting**
+- Check that the database file `meshtastic_messages.db` is being created
+- The database is automatically created in the project directory
+- Database files are excluded from git (they contain personal messages)
 
 ## Project Structure
 
 ```
 meshtastic-web/
-├── app.py                  # Flask backend
+├── app.py                      # Flask backend with SocketIO
+├── database.py                 # SQLite database operations
 ├── templates/
-│   └── index.html         # Web interface
-├── requirements.txt       # Python dependencies
-└── README.md             # This file
+│   └── index.html             # Web interface
+├── requirements.txt           # Python dependencies
+├── meshtastic_messages.db     # SQLite database (auto-created, gitignored)
+└── README.md                  # This file
 ```
+
+## How It Works
+
+1. **Backend (app.py):**
+   - Connects to Meshtastic device via USB serial
+   - Subscribes to incoming messages via pubsub
+   - Fetches channel configuration and node list from device
+   - Saves all messages to SQLite database
+   - Broadcasts messages to web clients via SocketIO
+
+2. **Database (database.py):**
+   - Stores message history with: sender, recipient, text, timestamp, channel
+   - Automatically creates tables on first run
+   - Provides queries for recent messages, filtered by DM/channel
+
+3. **Frontend (index.html):**
+   - Real-time bidirectional communication via Socket.IO
+   - Dynamically populates dropdown with channels and nodes
+   - Displays messages with channel names and timestamps
+   - Persists across page refreshes by loading from database

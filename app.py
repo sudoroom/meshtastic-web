@@ -18,16 +18,17 @@ interface = None
 def on_receive(packet, interface):
     """Called when a message is received"""
     if 'decoded' in packet and 'text' in packet['decoded']:
+        channel_index = packet.get('channel', 0)
         message_data = {
             'from': packet['from'],
             'to': packet['to'],
             'text': packet['decoded']['text'],
-            'time': packet.get('rxTime', 'unknown')
+            'time': packet.get('rxTime', 'unknown'),
+            'channel': channel_index
         }
 
         # Save to database
         if message_data['time'] != 'unknown':
-            channel_index = packet.get('channel', 0)
             save_message(
                 from_node=message_data['from'],
                 to_node=message_data['to'],
@@ -75,6 +76,7 @@ def handle_connect(auth=None):
     # Send initial node list
     if interface:
         send_node_list()
+        send_channel_list()
     # Send message history
     send_message_history()
     # Send our own node number
@@ -118,6 +120,33 @@ def send_message_history(limit=100):
             'total_count': 0
         })
 
+@socketio.on('get_channels')
+def send_channel_list():
+    """Send list of configured channels to client"""
+    if interface and interface.localNode:
+        channels = []
+        try:
+            # Get channel configuration from local node
+            channel_config = interface.localNode.channels
+            for i, channel in enumerate(channel_config):
+                if channel and hasattr(channel, 'settings'):
+                    settings = channel.settings
+                    channel_info = {
+                        'index': i,
+                        'name': settings.name if settings.name else f'Channel {i}',
+                        'role': str(channel.role) if hasattr(channel, 'role') else 'DISABLED'
+                    }
+                    # Only include enabled channels
+                    if channel_info['role'] != 'DISABLED':
+                        channels.append(channel_info)
+            emit('channel_list', {'channels': channels})
+            print(f"Sent {len(channels)} channels to client: {channels}")
+        except Exception as e:
+            print(f"Error getting channels: {e}")
+            emit('channel_list', {'channels': []})
+    else:
+        emit('channel_list', {'channels': []})
+
 @socketio.on('get_nodes')
 def send_node_list():
     """Send list of visible nodes to client"""
@@ -151,7 +180,7 @@ def handle_send(data):
     """Send a message through meshtastic"""
     print(f"Received send_message event with data: {data}")
     text = data.get('text', '')
-    recipient = data.get('recipient', 'channel')  # 'channel' or node number
+    recipient = data.get('recipient', 'channel:0')  # 'channel:X' or node number
     print(f"Text to send: '{text}' to {recipient}")
     print(f"Interface status: {interface}")
     if interface and text:
@@ -159,26 +188,26 @@ def handle_send(data):
         try:
             # Get our own node number for the database
             my_node_num = interface.myInfo.my_node_num if interface.myInfo else 0
+            import time
 
-            if recipient == 'channel':
-                # Send to default channel (MediumFast)
-                interface.sendText(text, channelIndex=0)
-                print("Message sent to channel successfully!")
+            if recipient.startswith('channel:'):
+                # Send to specific channel
+                channel_index = int(recipient.split(':')[1])
+                interface.sendText(text, channelIndex=channel_index)
+                print(f"Message sent to channel {channel_index} successfully!")
                 # Save to database
-                import time
                 save_message(
                     from_node=my_node_num,
                     to_node=4294967295,  # Broadcast
                     text=text,
                     timestamp=int(time.time()),
-                    channel_index=0
+                    channel_index=channel_index
                 )
             else:
                 # Send DM to specific node
                 interface.sendText(text, destinationId=int(recipient))
                 print(f"DM sent to node {recipient} successfully!")
                 # Save to database
-                import time
                 save_message(
                     from_node=my_node_num,
                     to_node=int(recipient),
