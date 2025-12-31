@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit
 import meshtastic
 import meshtastic.serial_interface
 from pubsub import pub
+import subprocess
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -22,6 +23,17 @@ def on_receive(packet, interface):
         # Send to all connected web clients
         socketio.emit('new_message', message_data)
         print(f"Received: {message_data}")
+
+        # Speak the message aloud using espeak (Linux TTS)
+        try:
+            text_to_speak = message_data['text']
+            # Try espeak first, fallback to spd-say if not available
+            try:
+                subprocess.run(['espeak', text_to_speak], check=False)
+            except FileNotFoundError:
+                subprocess.run(['spd-say', text_to_speak], check=False)
+        except Exception as e:
+            print(f"Error speaking message: {e}")
 
 @app.route('/')
 def index():
