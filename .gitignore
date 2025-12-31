@@ -1,0 +1,40 @@
+# Virtual Environment
+meshtastic-web/
+venv/
+env/
+ENV/
+.venv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Flask
+instance/
+.webassets-cache
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
