@@ -141,14 +141,36 @@ def handle_send(data):
     if interface and text:
         print(f"Attempting to send: '{text}' to {recipient}")
         try:
+            # Get our own node number for the database
+            my_node_num = interface.myInfo.my_node_num if interface.myInfo else 0
+
             if recipient == 'channel':
                 # Send to default channel (MediumFast)
                 interface.sendText(text, channelIndex=0)
                 print("Message sent to channel successfully!")
+                # Save to database
+                import time
+                save_message(
+                    from_node=my_node_num,
+                    to_node=4294967295,  # Broadcast
+                    text=text,
+                    timestamp=int(time.time()),
+                    channel_index=0
+                )
             else:
                 # Send DM to specific node
                 interface.sendText(text, destinationId=int(recipient))
                 print(f"DM sent to node {recipient} successfully!")
+                # Save to database
+                import time
+                save_message(
+                    from_node=my_node_num,
+                    to_node=int(recipient),
+                    text=text,
+                    timestamp=int(time.time()),
+                    channel_index=0
+                )
+
             emit('message_sent', {'status': 'success'})
         except Exception as e:
             print(f"Error sending message: {e}")
