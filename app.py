@@ -51,19 +51,16 @@ def send_node_list():
     if interface and interface.nodes:
         nodes = []
         for node_id, node in interface.nodes.items():
-            print(f"Processing node {node_id}: {node}")
             # Extract user data into a plain dict for JSON serialization
             user_obj = node.get('user')
-            print(f"User obj: {user_obj}, type: {type(user_obj)}")
             user_data = {}
             if user_obj:
-                # Try different ways to access the data
+                # user_obj is a dict, so use dict access
                 user_data = {
-                    'longName': getattr(user_obj, 'longName', None) or getattr(user_obj, 'long_name', None),
-                    'shortName': getattr(user_obj, 'shortName', None) or getattr(user_obj, 'short_name', None),
-                    'id': getattr(user_obj, 'id', None)
+                    'longName': user_obj.get('longName'),
+                    'shortName': user_obj.get('shortName'),
+                    'id': user_obj.get('id')
                 }
-                print(f"Extracted user_data: {user_data}")
 
             node_info = {
                 'id': node_id,
