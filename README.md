@@ -8,6 +8,8 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - 💬 Send messages to the MediumFast channel or DM specific nodes
 - 🛰️ Auto-updating list of visible nodes
 - 🌐 Access from any device on your network
+- 🔊 Text-to-speech for DMs and non-MediumFast channels (using gspeak)
+- 📑 Tabbed interface separating All Messages, Channel, and Direct Messages
 
 ## Setup
 
