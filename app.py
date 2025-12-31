@@ -51,10 +51,20 @@ def send_node_list():
     if interface and interface.nodes:
         nodes = []
         for node_id, node in interface.nodes.items():
+            # Extract user data into a plain dict for JSON serialization
+            user_obj = node.get('user')
+            user_data = {}
+            if user_obj:
+                user_data = {
+                    'longName': getattr(user_obj, 'longName', None),
+                    'shortName': getattr(user_obj, 'shortName', None),
+                    'id': getattr(user_obj, 'id', None)
+                }
+
             node_info = {
                 'id': node_id,
                 'num': node['num'],
-                'user': node.get('user', {})
+                'user': user_data
             }
             nodes.append(node_info)
         emit('node_list', {'nodes': nodes})
