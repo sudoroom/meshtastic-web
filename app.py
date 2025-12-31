@@ -29,7 +29,7 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth=None):  # Add auth parameter
     global interface
     if interface is None:
         # Subscribe to message receive events
