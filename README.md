@@ -18,6 +18,7 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - Python 3.11+ (Python 3.11.2+ works great)
 - USB-connected Meshtastic device
 - Permission to access serial devices (see below)
+- (Optional) `gspeak` for text-to-speech announcements
 
 ### Installation
 
@@ -47,6 +48,33 @@ A real-time web interface for sending and receiving Meshtastic messages through 
    # Or reboot your system
    ```
 
+5. (Optional) Set up text-to-speech with gspeak
+   ```bash
+   # Install dependencies
+   sudo apt-get install mpg123
+   pip install gtts-cli
+
+   # Create the gspeak script
+   sudo nano /usr/bin/gspeak
+   ```
+
+   Add this content to `/usr/bin/gspeak`:
+   ```bash
+   #!/bin/bash
+   ALLPARMS="$@"
+   gtts-cli "$ALLPARMS" | mpg123 -
+   ```
+
+   Make it executable:
+   ```bash
+   sudo chmod +x /usr/bin/gspeak
+   ```
+
+   Test it:
+   ```bash
+   gspeak "Hello from Meshtastic"
+   ```
+
 ### Running
 
 ```bash
@@ -64,6 +92,8 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
 - Select recipient from dropdown (channel or specific node)
 - Type your message and hit Send or press Enter
 - Incoming messages appear automatically in real-time
+- Use tabs to filter messages: All Messages, Channel (MediumFast), or Direct Messages
+- If `gspeak` is installed, DMs and other channels will be read aloud (MediumFast channel is silent due to high traffic)
 
 ## Recreating the Virtual Environment
 
