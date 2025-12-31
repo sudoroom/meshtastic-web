@@ -77,6 +77,22 @@ def handle_connect(auth=None):
         send_node_list()
     # Send message history
     send_message_history()
+    # Send our own node number
+    send_my_node_number()
+
+@socketio.on('get_my_node_number')
+def send_my_node_number():
+    """Send our own node number to the client"""
+    try:
+        if interface and interface.myInfo:
+            my_node_num = interface.myInfo.my_node_num
+            emit('my_node_number', {'node_number': my_node_num})
+            print(f"Sent my node number: {my_node_num}")
+        else:
+            emit('my_node_number', {'node_number': None})
+    except Exception as e:
+        print(f"Error sending node number: {e}")
+        emit('my_node_number', {'node_number': None})
 
 @socketio.on('get_message_history')
 def send_message_history(limit=100):

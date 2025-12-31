@@ -107,6 +107,9 @@
         const messagesDMs = document.getElementById('messages-dms');
         const recipientSelect = document.getElementById('recipient');
 
+        // Store our own node number to filter out echo messages
+        let myNodeNumber = null;
+
         // Tab switching function
         function switchTab(tabName) {
             // Hide all tabs
@@ -143,6 +146,12 @@
             console.log('Connected to server');
             socket.emit('get_nodes');  // Request node list on connect
             socket.emit('get_message_history');  // Request message history on connect
+            socket.emit('get_my_node_number');  // Request our own node number
+        });
+
+        socket.on('my_node_number', (data) => {
+            myNodeNumber = data.node_number;
+            console.log(`My node number: ${myNodeNumber}`);
         });
 
         socket.on('message_history', (data) => {
@@ -214,6 +223,12 @@
         });
 
         socket.on('new_message', (data) => {
+            // Skip messages from ourselves to avoid echo (we already display them immediately)
+            if (myNodeNumber && data.from === myNodeNumber) {
+                console.log('Skipping echo of own message');
+                return;
+            }
+
             const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
             const messageText = `[${timeStr}] From ${data.from}: ${data.text}`;
 
