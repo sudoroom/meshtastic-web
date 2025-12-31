@@ -455,6 +455,11 @@
             });
 
             console.log(`Loaded ${data.nodes.length} nodes into nodeMap`);
+
+            // Rebuild sidebar now that we have node names
+            if (currentMode === 'dms' && allMessages.length > 0 && myNodeNumber !== null) {
+                rebuildSidebar();
+            }
         });
 
         socket.on('new_message', (data) => {

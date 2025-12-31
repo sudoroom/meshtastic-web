@@ -4,7 +4,7 @@ import meshtastic
 import meshtastic.serial_interface
 from pubsub import pub
 import subprocess
-from database import init_database, save_message, get_recent_messages, get_message_count
+from database import init_database, save_message, get_recent_messages, get_message_count, upsert_node, get_all_nodes
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -26,6 +26,19 @@ def on_receive(packet, interface):
             'time': packet.get('rxTime', 'unknown'),
             'channel': channel_index
         }
+
+        # Save sender's node info if available
+        from_node_num = message_data['from']
+        if interface and interface.nodes and from_node_num in interface.nodes:
+            node = interface.nodes[from_node_num]
+            user_obj = node.get('user')
+            if user_obj:
+                upsert_node(
+                    from_node_num,
+                    user_obj.get('shortName'),
+                    user_obj.get('longName'),
+                    user_obj.get('id')
+                )
 
         # Save to database
         if message_data['time'] != 'unknown':
@@ -153,31 +166,46 @@ def send_channel_list():
 
 @socketio.on('get_nodes')
 def send_node_list():
-    """Send list of visible nodes to client"""
+    """Send list of visible nodes to client, merging with stored nodes from database"""
+    # Start with nodes from database (includes offline nodes)
+    stored_nodes = get_all_nodes()
+
+    # Update with currently visible nodes from interface
     if interface and interface.nodes:
-        nodes = []
         for node_id, node in interface.nodes.items():
-            # Extract user data into a plain dict for JSON serialization
+            # Extract user data
             user_obj = node.get('user')
-            user_data = {}
             if user_obj:
-                # user_obj is a dict, so use dict access
-                user_data = {
-                    'longName': user_obj.get('longName'),
-                    'shortName': user_obj.get('shortName'),
-                    'id': user_obj.get('id')
+                node_num = node['num']
+                short_name = user_obj.get('shortName')
+                long_name = user_obj.get('longName')
+                node_id_str = user_obj.get('id')
+
+                # Save/update in database
+                upsert_node(node_num, short_name, long_name, node_id_str)
+
+                # Update stored_nodes with current info
+                stored_nodes[node_num] = {
+                    'shortName': short_name,
+                    'longName': long_name,
+                    'id': node_id_str
                 }
 
-            node_info = {
-                'id': node_id,
-                'num': node['num'],
-                'user': user_data
+    # Convert to list format for sending to client
+    nodes = []
+    for node_num, node_data in stored_nodes.items():
+        node_info = {
+            'num': node_num,
+            'user': {
+                'shortName': node_data.get('shortName'),
+                'longName': node_data.get('longName'),
+                'id': node_data.get('id')
             }
-            nodes.append(node_info)
-        emit('node_list', {'nodes': nodes})
-        print(f"Sent {len(nodes)} nodes to client")
-    else:
-        emit('node_list', {'nodes': []})
+        }
+        nodes.append(node_info)
+
+    emit('node_list', {'nodes': nodes})
+    print(f"Sent {len(nodes)} nodes to client (including stored nodes)")
 
 @socketio.on('send_message')
 def handle_send(data):

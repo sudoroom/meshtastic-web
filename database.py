@@ -48,6 +48,17 @@ def init_database():
             ON messages(is_dm)
         ''')
 
+        # Nodes table - stores node information
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS nodes (
+                node_num INTEGER PRIMARY KEY,
+                short_name TEXT,
+                long_name TEXT,
+                node_id TEXT,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         print("Database initialized successfully")
 
 def save_message(from_node, to_node, text, timestamp, channel_index=0):
@@ -117,3 +128,75 @@ def get_message_count():
         cursor = conn.cursor()
         cursor.execute('SELECT COUNT(*) as count FROM messages')
         return cursor.fetchone()['count']
+
+def upsert_node(node_num, short_name=None, long_name=None, node_id=None):
+    """
+    Insert or update node information in the database
+
+    Args:
+        node_num: Node number (primary key)
+        short_name: Short name of the node
+        long_name: Long name of the node
+        node_id: Node ID string
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO nodes (node_num, short_name, long_name, node_id, last_seen)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(node_num) DO UPDATE SET
+                short_name = excluded.short_name,
+                long_name = excluded.long_name,
+                node_id = excluded.node_id,
+                last_seen = CURRENT_TIMESTAMP
+        ''', (node_num, short_name, long_name, node_id))
+
+    print(f"Saved node to database: {node_num} ({short_name})")
+
+def get_all_nodes():
+    """
+    Get all nodes from the database
+
+    Returns:
+        Dict mapping node_num to node info
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM nodes')
+        rows = cursor.fetchall()
+
+        nodes = {}
+        for row in rows:
+            nodes[row['node_num']] = {
+                'shortName': row['short_name'],
+                'longName': row['long_name'],
+                'id': row['node_id'],
+                'lastSeen': row['last_seen']
+            }
+
+        return nodes
+
+def get_node(node_num):
+    """
+    Get a specific node from the database
+
+    Args:
+        node_num: Node number to look up
+
+    Returns:
+        Dict with node info or None if not found
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM nodes WHERE node_num = ?', (node_num,))
+        row = cursor.fetchone()
+
+        if row:
+            return {
+                'shortName': row['short_name'],
+                'longName': row['long_name'],
+                'id': row['node_id'],
+                'lastSeen': row['last_seen']
+            }
+
+        return None
