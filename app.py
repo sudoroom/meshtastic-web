@@ -1,12 +1,16 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO, emit
 import meshtastic
 import meshtastic.serial_interface
 from pubsub import pub
 import subprocess
+from database import init_database, save_message, get_recent_messages, get_message_count
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Initialize database
+init_database()
 
 # Connect to your meshtastic device
 interface = None
@@ -20,6 +24,18 @@ def on_receive(packet, interface):
             'text': packet['decoded']['text'],
             'time': packet.get('rxTime', 'unknown')
         }
+
+        # Save to database
+        if message_data['time'] != 'unknown':
+            channel_index = packet.get('channel', 0)
+            save_message(
+                from_node=message_data['from'],
+                to_node=message_data['to'],
+                text=message_data['text'],
+                timestamp=message_data['time'],
+                channel_index=channel_index
+            )
+
         # Send to all connected web clients
         socketio.emit('new_message', message_data)
         print(f"Received: {message_data}")
@@ -59,6 +75,32 @@ def handle_connect(auth=None):
     # Send initial node list
     if interface:
         send_node_list()
+    # Send message history
+    send_message_history()
+
+@socketio.on('get_message_history')
+def send_message_history(limit=100):
+    """Send message history to client"""
+    try:
+        all_messages = get_recent_messages(limit=limit, is_dm=None)
+        channel_messages = get_recent_messages(limit=limit, is_dm=False)
+        dm_messages = get_recent_messages(limit=limit, is_dm=True)
+
+        emit('message_history', {
+            'all': all_messages,
+            'channel': channel_messages,
+            'dms': dm_messages,
+            'total_count': get_message_count()
+        })
+        print(f"Sent message history: {len(all_messages)} total messages")
+    except Exception as e:
+        print(f"Error sending message history: {e}")
+        emit('message_history', {
+            'all': [],
+            'channel': [],
+            'dms': [],
+            'total_count': 0
+        })
 
 @socketio.on('get_nodes')
 def send_node_list():

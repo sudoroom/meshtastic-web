@@ -142,6 +142,48 @@
         socket.on('connect', () => {
             console.log('Connected to server');
             socket.emit('get_nodes');  // Request node list on connect
+            socket.emit('get_message_history');  // Request message history on connect
+        });
+
+        socket.on('message_history', (data) => {
+            console.log(`Loading message history: ${data.total_count} total messages in database`);
+
+            // Load all messages
+            data.all.forEach(msg => {
+                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
+                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const msgEl = document.createElement('div');
+                msgEl.className = msg.is_dm ? 'message dm' : 'message';
+                msgEl.textContent = messageText;
+                messagesAll.appendChild(msgEl);
+            });
+
+            // Load channel messages
+            data.channel.forEach(msg => {
+                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
+                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const msgEl = document.createElement('div');
+                msgEl.className = 'message';
+                msgEl.textContent = messageText;
+                messagesChannel.appendChild(msgEl);
+            });
+
+            // Load DM messages
+            data.dms.forEach(msg => {
+                const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
+                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const msgEl = document.createElement('div');
+                msgEl.className = 'message dm';
+                msgEl.textContent = messageText;
+                messagesDMs.appendChild(msgEl);
+            });
+
+            // Scroll to bottom of all tabs
+            messagesAll.scrollTop = messagesAll.scrollHeight;
+            messagesChannel.scrollTop = messagesChannel.scrollHeight;
+            messagesDMs.scrollTop = messagesDMs.scrollHeight;
+
+            console.log(`Loaded ${data.all.length} messages into UI`);
         });
 
         socket.on('node_list', (data) => {

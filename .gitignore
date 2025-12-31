@@ -38,3 +38,9 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Database files (contains personal messages)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
