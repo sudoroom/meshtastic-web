@@ -47,15 +47,40 @@
 <body>
     <h1>🛰️ Meshtastic Messages</h1>
     <div id="messages"></div>
+    <div style="margin-bottom: 10px;">
+        <label for="recipient">To: </label>
+        <select id="recipient" style="padding: 8px; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4;">
+            <option value="channel">📡 MediumFast Channel (Public)</option>
+        </select>
+    </div>
     <input type="text" id="messageInput" placeholder="Type message...">
     <button onclick="sendMessage()">Send</button>
 
     <script>
         const socket = io();
         const messagesDiv = document.getElementById('messages');
+        const recipientSelect = document.getElementById('recipient');
 
         socket.on('connect', () => {
             console.log('Connected to server');
+            socket.emit('get_nodes');  // Request node list on connect
+        });
+
+        socket.on('node_list', (data) => {
+            console.log('Received nodes:', data.nodes);
+            // Clear current DM options (keep channel option)
+            const channelOption = recipientSelect.querySelector('option[value="channel"]');
+            recipientSelect.innerHTML = '';
+            recipientSelect.appendChild(channelOption);
+
+            // Add node options
+            data.nodes.forEach(node => {
+                const option = document.createElement('option');
+                const userName = node.user?.longName || node.user?.shortName || `Node ${node.num}`;
+                option.value = node.num;
+                option.textContent = `💬 DM: ${userName}`;
+                recipientSelect.appendChild(option);
+            });
         });
 
         socket.on('new_message', (data) => {
@@ -69,14 +94,20 @@
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
+            const recipient = recipientSelect.value;
+
             if (text) {
-                socket.emit('send_message', { text: text });
+                socket.emit('send_message', {
+                    text: text,
+                    recipient: recipient
+                });
 
                 // Show your own message immediately
                 const msgEl = document.createElement('div');
                 msgEl.className = 'message';
                 msgEl.style.borderLeftColor = '#ce9178';
-                msgEl.textContent = `[sent] You: ${text}`;
+                const recipientText = recipient === 'channel' ? 'Channel' : recipientSelect.options[recipientSelect.selectedIndex].text.replace('💬 DM: ', '');
+                msgEl.textContent = `[sent to ${recipientText}] You: ${text}`;
                 messagesDiv.appendChild(msgEl);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
@@ -87,6 +118,11 @@
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
+
+        // Refresh node list every 30 seconds
+        setInterval(() => {
+            socket.emit('get_nodes');
+        }, 30000);
     </script>
 </body>
 </html>

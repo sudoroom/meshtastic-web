@@ -31,20 +31,62 @@ def index():
 def handle_connect(auth=None):
     global interface
     if interface is None:
+        print("Initializing meshtastic interface...")
         # Subscribe to message receive events
         pub.subscribe(on_receive, "meshtastic.receive")
         # Connect to device (auto-finds USB device)
-        interface = meshtastic.serial_interface.SerialInterface()
+        try:
+            interface = meshtastic.serial_interface.SerialInterface()
+            print(f"Meshtastic interface connected: {interface}")
+        except Exception as e:
+            print(f"Error connecting to meshtastic: {e}")
     print('Client connected')
+    # Send initial node list
+    if interface:
+        send_node_list()
+
+@socketio.on('get_nodes')
+def send_node_list():
+    """Send list of visible nodes to client"""
+    if interface and interface.nodes:
+        nodes = []
+        for node_id, node in interface.nodes.items():
+            node_info = {
+                'id': node_id,
+                'num': node['num'],
+                'user': node.get('user', {})
+            }
+            nodes.append(node_info)
+        emit('node_list', {'nodes': nodes})
+        print(f"Sent {len(nodes)} nodes to client")
+    else:
+        emit('node_list', {'nodes': []})
 
 @socketio.on('send_message')
 def handle_send(data):
     """Send a message through meshtastic"""
+    print(f"Received send_message event with data: {data}")
     text = data.get('text', '')
+    recipient = data.get('recipient', 'channel')  # 'channel' or node number
+    print(f"Text to send: '{text}' to {recipient}")
+    print(f"Interface status: {interface}")
     if interface and text:
-        interface.sendText(text)
-        emit('message_sent', {'status': 'success'})
+        print(f"Attempting to send: '{text}' to {recipient}")
+        try:
+            if recipient == 'channel':
+                # Send to default channel (MediumFast)
+                interface.sendText(text, channelIndex=0)
+                print("Message sent to channel successfully!")
+            else:
+                # Send DM to specific node
+                interface.sendText(text, destinationId=int(recipient))
+                print(f"DM sent to node {recipient} successfully!")
+            emit('message_sent', {'status': 'success'})
+        except Exception as e:
+            print(f"Error sending message: {e}")
+            emit('message_sent', {'status': 'error', 'message': str(e)})
     else:
+        print(f"Cannot send - interface: {interface}, text: '{text}'")
         emit('message_sent', {'status': 'error'})
 
 if __name__ == '__main__':
