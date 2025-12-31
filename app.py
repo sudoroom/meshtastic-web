@@ -104,6 +104,10 @@ def send_message_history(limit=100):
         channel_messages = get_recent_messages(limit=limit, is_dm=False)
         dm_messages = get_recent_messages(limit=limit, is_dm=True)
 
+        # Enrich messages with node information
+        for msg in all_messages + channel_messages + dm_messages:
+            msg['channel_index'] = msg.get('channel_index', 0)
+
         emit('message_history', {
             'all': all_messages,
             'channel': channel_messages,

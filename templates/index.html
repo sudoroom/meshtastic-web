@@ -53,6 +53,11 @@
         .message.dm {
             border-left-color: #ce9178;
         }
+        .message span[title] {
+            cursor: help;
+            text-decoration: underline dotted;
+            text-decoration-color: #888;
+        }
         #messageInput {
             width: 70%;
             padding: 8px;
@@ -111,6 +116,8 @@
         let myNodeNumber = null;
         // Store channel name map for display
         let channelMap = {};
+        // Store node information map for display
+        let nodeMap = {};
 
         // Tab switching function
         function switchTab(tabName) {
@@ -144,6 +151,27 @@
             return date.toLocaleString('en-US', options);
         }
 
+        // Get display name for a node number
+        function getNodeDisplayName(nodeNum) {
+            const node = nodeMap[nodeNum];
+            if (node && node.shortName) {
+                return node.shortName;
+            }
+            return `Node ${nodeNum}`;
+        }
+
+        // Get tooltip for a node number
+        function getNodeTooltip(nodeNum) {
+            const node = nodeMap[nodeNum];
+            if (node) {
+                let tooltip = '';
+                if (node.longName) tooltip += node.longName;
+                if (node.id) tooltip += (tooltip ? '\n' : '') + `ID: ${node.id}`;
+                if (tooltip) return tooltip;
+            }
+            return `Node ${nodeNum}`;
+        }
+
         socket.on('connect', () => {
             console.log('Connected to server');
             socket.emit('get_nodes');  // Request node list on connect
@@ -163,30 +191,36 @@
             // Load all messages
             data.all.forEach(msg => {
                 const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
+                const senderName = getNodeDisplayName(msg.from);
+                const senderTooltip = getNodeTooltip(msg.from);
                 const msgEl = document.createElement('div');
                 msgEl.className = msg.is_dm ? 'message dm' : 'message';
-                msgEl.textContent = messageText;
+                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
                 messagesAll.appendChild(msgEl);
             });
 
             // Load channel messages
             data.channel.forEach(msg => {
                 const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
+                const senderName = getNodeDisplayName(msg.from);
+                const senderTooltip = getNodeTooltip(msg.from);
                 const msgEl = document.createElement('div');
                 msgEl.className = 'message';
-                msgEl.textContent = messageText;
+                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
                 messagesChannel.appendChild(msgEl);
             });
 
             // Load DM messages
             data.dms.forEach(msg => {
                 const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const messageText = `[${timeStr}] From ${msg.from}: ${msg.text}`;
+                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
+                const senderName = getNodeDisplayName(msg.from);
+                const senderTooltip = getNodeTooltip(msg.from);
                 const msgEl = document.createElement('div');
                 msgEl.className = 'message dm';
-                msgEl.textContent = messageText;
+                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
                 messagesDMs.appendChild(msgEl);
             });
 
@@ -220,6 +254,15 @@
         });
 
         socket.on('node_list', (data) => {
+            // Build node map for message display
+            data.nodes.forEach(node => {
+                nodeMap[node.num] = {
+                    shortName: node.user?.shortName,
+                    longName: node.user?.longName,
+                    id: node.user?.id
+                };
+            });
+
             // Add node options (DMs) after channels
             data.nodes.forEach(node => {
                 const option = document.createElement('option');
@@ -239,6 +282,8 @@
                 option.textContent = `💬 DM: ${userName}`;
                 recipientSelect.appendChild(option);
             });
+
+            console.log(`Loaded ${data.nodes.length} nodes into nodeMap`);
         });
 
         socket.on('new_message', (data) => {
@@ -250,7 +295,8 @@
 
             const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
             const channelName = channelMap[data.channel] || `Channel ${data.channel}`;
-            const messageText = `[${timeStr}] [${channelName}] From ${data.from}: ${data.text}`;
+            const senderName = getNodeDisplayName(data.from);
+            const senderTooltip = getNodeTooltip(data.from);
 
             // Determine if this is a DM or channel message
             // In Meshtastic, broadcast messages have 'to' field as a broadcast address (like 0xffffffff)
@@ -259,14 +305,14 @@
             // Create message element for "All" tab
             const msgElAll = document.createElement('div');
             msgElAll.className = isDM ? 'message dm' : 'message';
-            msgElAll.textContent = messageText;
+            msgElAll.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
             messagesAll.appendChild(msgElAll);
             messagesAll.scrollTop = messagesAll.scrollHeight;
 
             // Create message element for specific tab (Channel or DMs)
             const msgElSpecific = document.createElement('div');
             msgElSpecific.className = isDM ? 'message dm' : 'message';
-            msgElSpecific.textContent = messageText;
+            msgElSpecific.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
 
             if (isDM) {
                 messagesDMs.appendChild(msgElSpecific);

@@ -105,7 +105,8 @@ def get_recent_messages(limit=100, is_dm=None):
                 'to': row['to_node'],
                 'text': row['text'],
                 'time': row['timestamp'],
-                'is_dm': bool(row['is_dm'])
+                'is_dm': bool(row['is_dm']),
+                'channel_index': row['channel_index']
             })
 
         return messages
