@@ -11,7 +11,32 @@
             color: #d4d4d4;
         }
         h1 { color: #4ec9b0; }
-        #messages {
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: #2d2d30;
+            border: 1px solid #555;
+            cursor: pointer;
+            color: #d4d4d4;
+        }
+        .tab:hover {
+            background: #3c3c3c;
+        }
+        .tab.active {
+            background: #0e639c;
+            border-color: #0e639c;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .messages-container {
             border: 1px solid #555;
             height: 400px;
             overflow-y: scroll;
@@ -24,6 +49,9 @@
             padding: 5px;
             background: #2d2d30;
             border-left: 3px solid #4ec9b0;
+        }
+        .message.dm {
+            border-left-color: #ce9178;
         }
         #messageInput {
             width: 70%;
@@ -46,7 +74,23 @@
 </head>
 <body>
     <h1>🛰️ Meshtastic Messages</h1>
-    <div id="messages"></div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('all')">All Messages</div>
+        <div class="tab" onclick="switchTab('channel')">Channel</div>
+        <div class="tab" onclick="switchTab('dms')">Direct Messages</div>
+    </div>
+
+    <div id="tab-all" class="tab-content active">
+        <div id="messages-all" class="messages-container"></div>
+    </div>
+    <div id="tab-channel" class="tab-content">
+        <div id="messages-channel" class="messages-container"></div>
+    </div>
+    <div id="tab-dms" class="tab-content">
+        <div id="messages-dms" class="messages-container"></div>
+    </div>
+
     <div style="margin-bottom: 10px;">
         <label for="recipient">To: </label>
         <select id="recipient" style="padding: 8px; background: #3c3c3c; border: 1px solid #555; color: #d4d4d4;">
@@ -58,8 +102,27 @@
 
     <script>
         const socket = io();
-        const messagesDiv = document.getElementById('messages');
+        const messagesAll = document.getElementById('messages-all');
+        const messagesChannel = document.getElementById('messages-channel');
+        const messagesDMs = document.getElementById('messages-dms');
         const recipientSelect = document.getElementById('recipient');
+
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Scroll to bottom of active tab
+            const activeMessages = document.querySelector(`#tab-${tabName} .messages-container`);
+            if (activeMessages) {
+                activeMessages.scrollTop = activeMessages.scrollHeight;
+            }
+        }
 
         // Format Unix timestamp to readable time
         function formatTime(unixTime) {
@@ -82,7 +145,6 @@
         });
 
         socket.on('node_list', (data) => {
-            console.log('Received nodes:', data.nodes);
             // Clear current DM options (keep channel option)
             const channelOption = recipientSelect.querySelector('option[value="channel"]');
             recipientSelect.innerHTML = '';
@@ -90,12 +152,9 @@
 
             // Add node options
             data.nodes.forEach(node => {
-                console.log('Node data:', node);
-                console.log('User object:', node.user);
                 const option = document.createElement('option');
                 const shortName = node.user?.shortName;
                 const longName = node.user?.longName;
-                console.log(`Node ${node.num}: shortName=${shortName}, longName=${longName}`);
                 let userName;
                 if (shortName && longName) {
                     userName = `${shortName} (${longName}) - Node ${node.num}`;
@@ -113,12 +172,32 @@
         });
 
         socket.on('new_message', (data) => {
-            const msgEl = document.createElement('div');
-            msgEl.className = 'message';
             const timeStr = data.time !== 'unknown' ? formatTime(data.time) : 'unknown time';
-            msgEl.textContent = `[${timeStr}] From ${data.from}: ${data.text}`;
-            messagesDiv.appendChild(msgEl);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            const messageText = `[${timeStr}] From ${data.from}: ${data.text}`;
+
+            // Determine if this is a DM or channel message
+            // In Meshtastic, broadcast messages have 'to' field as a broadcast address (like 0xffffffff)
+            const isDM = data.to !== 4294967295 && data.to !== '^all'; // 0xffffffff = 4294967295
+
+            // Create message element for "All" tab
+            const msgElAll = document.createElement('div');
+            msgElAll.className = isDM ? 'message dm' : 'message';
+            msgElAll.textContent = messageText;
+            messagesAll.appendChild(msgElAll);
+            messagesAll.scrollTop = messagesAll.scrollHeight;
+
+            // Create message element for specific tab (Channel or DMs)
+            const msgElSpecific = document.createElement('div');
+            msgElSpecific.className = isDM ? 'message dm' : 'message';
+            msgElSpecific.textContent = messageText;
+
+            if (isDM) {
+                messagesDMs.appendChild(msgElSpecific);
+                messagesDMs.scrollTop = messagesDMs.scrollHeight;
+            } else {
+                messagesChannel.appendChild(msgElSpecific);
+                messagesChannel.scrollTop = messagesChannel.scrollHeight;
+            }
         });
 
         function sendMessage() {
@@ -133,9 +212,7 @@
                 });
 
                 // Show your own message immediately
-                const msgEl = document.createElement('div');
-                msgEl.className = 'message';
-                msgEl.style.borderLeftColor = '#ce9178';
+                const isDM = recipient !== 'channel';
                 const recipientText = recipient === 'channel' ? 'Channel' : recipientSelect.options[recipientSelect.selectedIndex].text.replace('💬 DM: ', '');
                 const now = new Date();
                 const timeStr = now.toLocaleString('en-US', {
@@ -147,9 +224,29 @@
                     second: '2-digit',
                     hour12: true
                 });
-                msgEl.textContent = `[${timeStr}] You → ${recipientText}: ${text}`;
-                messagesDiv.appendChild(msgEl);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                const messageText = `[${timeStr}] You → ${recipientText}: ${text}`;
+
+                // Add to "All" tab
+                const msgElAll = document.createElement('div');
+                msgElAll.className = 'message';
+                msgElAll.style.borderLeftColor = '#ce9178';
+                msgElAll.textContent = messageText;
+                messagesAll.appendChild(msgElAll);
+                messagesAll.scrollTop = messagesAll.scrollHeight;
+
+                // Add to specific tab
+                const msgElSpecific = document.createElement('div');
+                msgElSpecific.className = 'message';
+                msgElSpecific.style.borderLeftColor = '#ce9178';
+                msgElSpecific.textContent = messageText;
+
+                if (isDM) {
+                    messagesDMs.appendChild(msgElSpecific);
+                    messagesDMs.scrollTop = messagesDMs.scrollHeight;
+                } else {
+                    messagesChannel.appendChild(msgElSpecific);
+                    messagesChannel.scrollTop = messagesChannel.scrollHeight;
+                }
 
                 input.value = '';
             }

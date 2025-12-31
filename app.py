@@ -25,17 +25,24 @@ def on_receive(packet, interface):
         print(f"Received: {message_data}")
 
         # Speak the message aloud using espeak (Linux TTS)
-        try:
-            text_to_speak = message_data['text']
-            # Try espeak first, fallback to spd-say if not available
+        # Skip MediumFast channel (channelIndex 0 / broadcast to 0xffffffff)
+        # Only speak DMs and other channels
+        is_broadcast = message_data['to'] == 4294967295  # 0xffffffff
+        channel_index = packet.get('channel', 0)
+
+        # Don't speak if it's the MediumFast channel (channel 0 broadcast)
+        if not (is_broadcast and channel_index == 0):
             try:
-                # -s 150 sets speed to 150 words per minute (default is 175)
-                subprocess.run(['espeak', '-s', '150', text_to_speak], check=False)
-            except FileNotFoundError:
-                # -r -30 reduces rate by 30% for spd-say
-                subprocess.run(['spd-say', '-r', '-30', text_to_speak], check=False)
-        except Exception as e:
-            print(f"Error speaking message: {e}")
+                text_to_speak = message_data['text']
+                # Try espeak first, fallback to spd-say if not available
+                try:
+                    # -s 150 sets speed to 150 words per minute (default is 175)
+                    subprocess.run(['espeak', '-s', '150', text_to_speak], check=False)
+                except FileNotFoundError:
+                    # -r -30 reduces rate by 30% for spd-say
+                    subprocess.run(['spd-say', '-r', '-30', text_to_speak], check=False)
+            except Exception as e:
+                print(f"Error speaking message: {e}")
 
 @app.route('/')
 def index():
