@@ -215,12 +215,11 @@
             // Load DM messages
             data.dms.forEach(msg => {
                 const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
-                const channelName = channelMap[msg.channel_index || 0] || `Channel ${msg.channel_index || 0}`;
                 const senderName = getNodeDisplayName(msg.from);
                 const senderTooltip = getNodeTooltip(msg.from);
                 const msgEl = document.createElement('div');
                 msgEl.className = 'message dm';
-                msgEl.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
+                msgEl.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
                 messagesDMs.appendChild(msgEl);
             });
 
@@ -305,14 +304,22 @@
             // Create message element for "All" tab
             const msgElAll = document.createElement('div');
             msgElAll.className = isDM ? 'message dm' : 'message';
-            msgElAll.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            if (isDM) {
+                msgElAll.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            } else {
+                msgElAll.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            }
             messagesAll.appendChild(msgElAll);
             messagesAll.scrollTop = messagesAll.scrollHeight;
 
             // Create message element for specific tab (Channel or DMs)
             const msgElSpecific = document.createElement('div');
             msgElSpecific.className = isDM ? 'message dm' : 'message';
-            msgElSpecific.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            if (isDM) {
+                msgElSpecific.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            } else {
+                msgElSpecific.innerHTML = `[${timeStr}] [${channelName}] From <span title="${senderTooltip}">${senderName}</span>: ${data.text}`;
+            }
 
             if (isDM) {
                 messagesDMs.appendChild(msgElSpecific);
