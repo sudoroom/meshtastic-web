@@ -731,6 +731,8 @@
                         (msg.from === currentSelection && msg.to === myNodeNumber)
                     )
                 ));
+                // Rebuild sidebar so new DM conversation appears immediately
+                rebuildSidebar();
             }
 
             // Clear input

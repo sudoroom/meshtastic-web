@@ -122,7 +122,7 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
   - Browse all available nodes sorted alphabetically by name
   - Use the filter box to search by short name, long name, or node ID
   - Click any node to start a conversation
-  - The node will appear in your DM sidebar after you send your first message
+  - The node appears in your DM sidebar immediately after you send your first message
 
 - **Text-to-Speech:**
   - If `gspeak` is installed, DMs and non-MediumFast channels will be read aloud
