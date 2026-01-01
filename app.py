@@ -195,12 +195,20 @@ def send_node_list():
                         'id': node_id_str
                     }
 
-            # Save all nodes in one go
+            # Save nodes only if they're new or changed
             for node_data in nodes_to_save:
+                node_num, short_name, long_name, node_id_str = node_data
                 try:
-                    upsert_node(*node_data)
+                    # Check if this node is new or has changed
+                    existing = stored_nodes.get(node_num)
+                    if not existing or (
+                        existing.get('shortName') != short_name or
+                        existing.get('longName') != long_name or
+                        existing.get('id') != node_id_str
+                    ):
+                        upsert_node(node_num, short_name, long_name, node_id_str)
                 except Exception as e:
-                    print(f"Error saving node {node_data[0]}: {e}")
+                    print(f"Error saving node {node_num}: {e}")
 
         # Convert to list format for sending to client
         nodes = []
