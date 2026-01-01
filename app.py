@@ -167,45 +167,62 @@ def send_channel_list():
 @socketio.on('get_nodes')
 def send_node_list():
     """Send list of visible nodes to client, merging with stored nodes from database"""
-    # Start with nodes from database (includes offline nodes)
-    stored_nodes = get_all_nodes()
+    try:
+        # Start with nodes from database (includes offline nodes)
+        stored_nodes = get_all_nodes()
 
-    # Update with currently visible nodes from interface
-    if interface and interface.nodes:
-        for node_id, node in interface.nodes.items():
-            # Extract user data
-            user_obj = node.get('user')
-            if user_obj:
-                node_num = node['num']
-                short_name = user_obj.get('shortName')
-                long_name = user_obj.get('longName')
-                node_id_str = user_obj.get('id')
+        # Update with currently visible nodes from interface
+        # Create a copy to avoid "dictionary changed size during iteration" error
+        if interface and interface.nodes:
+            nodes_snapshot = dict(interface.nodes.items())
+            # Batch process nodes to reduce database writes
+            nodes_to_save = []
+            for node_id, node in nodes_snapshot.items():
+                # Extract user data
+                user_obj = node.get('user')
+                if user_obj:
+                    node_num = node['num']
+                    short_name = user_obj.get('shortName')
+                    long_name = user_obj.get('longName')
+                    node_id_str = user_obj.get('id')
 
-                # Save/update in database
-                upsert_node(node_num, short_name, long_name, node_id_str)
+                    nodes_to_save.append((node_num, short_name, long_name, node_id_str))
 
-                # Update stored_nodes with current info
-                stored_nodes[node_num] = {
-                    'shortName': short_name,
-                    'longName': long_name,
-                    'id': node_id_str
+                    # Update stored_nodes with current info
+                    stored_nodes[node_num] = {
+                        'shortName': short_name,
+                        'longName': long_name,
+                        'id': node_id_str
+                    }
+
+            # Save all nodes in one go
+            for node_data in nodes_to_save:
+                try:
+                    upsert_node(*node_data)
+                except Exception as e:
+                    print(f"Error saving node {node_data[0]}: {e}")
+
+        # Convert to list format for sending to client
+        nodes = []
+        for node_num, node_data in stored_nodes.items():
+            node_info = {
+                'num': node_num,
+                'user': {
+                    'shortName': node_data.get('shortName'),
+                    'longName': node_data.get('longName'),
+                    'id': node_data.get('id')
                 }
-
-    # Convert to list format for sending to client
-    nodes = []
-    for node_num, node_data in stored_nodes.items():
-        node_info = {
-            'num': node_num,
-            'user': {
-                'shortName': node_data.get('shortName'),
-                'longName': node_data.get('longName'),
-                'id': node_data.get('id')
             }
-        }
-        nodes.append(node_info)
+            nodes.append(node_info)
 
-    emit('node_list', {'nodes': nodes})
-    print(f"Sent {len(nodes)} nodes to client (including stored nodes)")
+        emit('node_list', {'nodes': nodes})
+        print(f"Sent {len(nodes)} nodes to client (including stored nodes)")
+    except Exception as e:
+        print(f"Error in send_node_list: {e}")
+        import traceback
+        traceback.print_exc()
+        # Send empty list on error
+        emit('node_list', {'nodes': []})
 
 @socketio.on('send_message')
 def handle_send(data):

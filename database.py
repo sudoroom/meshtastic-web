@@ -7,7 +7,8 @@ DATABASE_PATH = 'meshtastic_messages.db'
 @contextmanager
 def get_db():
     """Context manager for database connections"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    # Set a timeout to handle concurrent access better
+    conn = sqlite3.connect(DATABASE_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
