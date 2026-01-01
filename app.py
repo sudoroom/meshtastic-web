@@ -247,9 +247,12 @@ def handle_send(data):
             my_node_num = interface.myInfo.my_node_num if interface.myInfo else 0
             import time
 
-            if recipient.startswith('channel:'):
+            # Convert recipient to string if it's an integer
+            recipient_str = str(recipient) if isinstance(recipient, int) else recipient
+
+            if recipient_str.startswith('channel:'):
                 # Send to specific channel
-                channel_index = int(recipient.split(':')[1])
+                channel_index = int(recipient_str.split(':')[1])
                 interface.sendText(text, channelIndex=channel_index)
                 print(f"Message sent to channel {channel_index} successfully!")
                 # Save to database
