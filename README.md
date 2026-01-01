@@ -19,6 +19,7 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - 🔍 **Node filtering** - Search/filter nodes by name or ID when selecting DM recipients
 - 💿 **Persistent node storage** - Node names are saved to database and persist even when nodes go offline
 - ⚡ **Optimized database writes** - Change detection prevents unnecessary database writes
+- ✓ **Message acknowledgments** - Real-time delivery status for DMs (Pending/Delivered/Failed)
 
 ## Setup
 
@@ -124,6 +125,13 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
   - Click any node to start a conversation
   - The node appears in your DM sidebar immediately after you send your first message
 
+- **Message Delivery Status (DMs only):**
+  - ⏳ **Pending** - Message sent, waiting for acknowledgment from recipient
+  - ✓ **Delivered** - Message successfully received by the recipient's device
+  - ✗ **Failed** - Message delivery failed (recipient offline, out of range, or error)
+  - Status updates automatically in real-time as acknowledgments arrive
+  - Channel messages don't show status (broadcast messages don't receive ACKs)
+
 - **Text-to-Speech:**
   - If `gspeak` is installed, DMs and non-MediumFast channels will be read aloud
   - MediumFast channel (channel 0) is silent due to high traffic
@@ -182,6 +190,8 @@ meshtastic-web/
    - Uses change detection to only save nodes when data actually changes
    - Broadcasts messages to web clients via SocketIO
    - Merges live node data with stored node data for persistent node names
+   - Tracks message acknowledgments (ACK/NAK) for DMs using Meshtastic's wantAck feature
+   - Emits real-time delivery status updates to connected clients
 
 2. **Database (database.py):**
    - Stores message history with: sender, recipient, text, timestamp, channel
@@ -200,3 +210,13 @@ meshtastic-web/
    - Persists across page refreshes by loading from database
    - Node selector with real-time search/filter for starting new DMs
    - Auto-focus filter input for quick node lookup
+   - Tracks message packet IDs and displays delivery status indicators
+   - Updates message status in real-time when ACK/NAK events arrive
+
+## References
+
+The message acknowledgment (ACK/NAK) feature uses the Meshtastic Python library's built-in functionality:
+
+- [Meshtastic Python API Documentation](https://python.meshtastic.org/)
+- [mesh_interface API Documentation](https://python.meshtastic.org/mesh_interface.html) - Details on `sendText()` method with `wantAck` parameter and `onResponse` callbacks
+- [Using the Meshtastic Python Library](https://meshtastic.org/docs/development/python/library/) - Official guide for Python library usage

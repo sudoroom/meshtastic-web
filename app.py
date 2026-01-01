@@ -253,8 +253,9 @@ def handle_send(data):
             if recipient_str.startswith('channel:'):
                 # Send to specific channel
                 channel_index = int(recipient_str.split(':')[1])
-                interface.sendText(text, channelIndex=channel_index)
-                print(f"Message sent to channel {channel_index} successfully!")
+                packet = interface.sendText(text, channelIndex=channel_index)
+                packet_id = packet.id if packet else None
+                print(f"Message sent to channel {channel_index} successfully! Packet ID: {packet_id}")
                 # Save to database
                 save_message(
                     from_node=my_node_num,
@@ -263,10 +264,40 @@ def handle_send(data):
                     timestamp=int(time.time()),
                     channel_index=channel_index
                 )
+                emit('message_sent', {'status': 'success', 'packet_id': packet_id})
             else:
-                # Send DM to specific node
-                interface.sendText(text, destinationId=int(recipient))
-                print(f"DM sent to node {recipient} successfully!")
+                # Send DM to specific node with ACK request
+                def ack_handler(packet):
+                    """Handle ACK/NAK for this message"""
+                    print(f"ACK/NAK received for packet {packet.get('id')}: {packet}")
+                    # Determine if this is an ACK or NAK
+                    routing = packet.get('routing', {})
+                    error_reason = routing.get('errorReason', 'NONE')
+
+                    if error_reason == 'NONE':
+                        # ACK received
+                        socketio.emit('message_ack', {
+                            'packet_id': packet.get('id'),
+                            'status': 'ack'
+                        })
+                        print(f"✓ ACK received for packet {packet.get('id')}")
+                    else:
+                        # NAK received
+                        socketio.emit('message_ack', {
+                            'packet_id': packet.get('id'),
+                            'status': 'nak',
+                            'error': error_reason
+                        })
+                        print(f"✗ NAK received for packet {packet.get('id')}: {error_reason}")
+
+                packet = interface.sendText(
+                    text,
+                    destinationId=int(recipient),
+                    wantAck=True,
+                    onResponse=ack_handler
+                )
+                packet_id = packet.id if packet else None
+                print(f"DM sent to node {recipient} successfully! Packet ID: {packet_id}, waiting for ACK...")
                 # Save to database
                 save_message(
                     from_node=my_node_num,
@@ -275,8 +306,8 @@ def handle_send(data):
                     timestamp=int(time.time()),
                     channel_index=0
                 )
+                emit('message_sent', {'status': 'success', 'packet_id': packet_id})
 
-            emit('message_sent', {'status': 'success'})
         except Exception as e:
             print(f"Error sending message: {e}")
             emit('message_sent', {'status': 'error', 'message': str(e)})

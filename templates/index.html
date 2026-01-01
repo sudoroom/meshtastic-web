@@ -122,6 +122,21 @@
             text-decoration: underline dotted;
             text-decoration-color: #888;
         }
+        .message-status {
+            float: right;
+            font-size: 0.85em;
+            margin-left: 10px;
+            opacity: 0.7;
+        }
+        .message-status.pending {
+            color: #dcdcaa;
+        }
+        .message-status.ack {
+            color: #4ec9b0;
+        }
+        .message-status.nak {
+            color: #f48771;
+        }
         .message-input-area {
             padding: 15px 20px;
             background: #2d2d30;
@@ -260,6 +275,7 @@
         let nodeMap = {};
         let allMessages = []; // Store all messages for filtering
         let showingNodeSelect = false; // Track if we're showing node selection
+        let messageStatus = {}; // Track message status by packet_id: {packet_id: 'pending'|'ack'|'nak'}
 
         // Switch between Channels and DMs mode
         function switchMode(mode) {
@@ -507,6 +523,9 @@
             messages.forEach(msg => {
                 const msgEl = document.createElement('div');
                 msgEl.className = 'message';
+                if (msg.packet_id) {
+                    msgEl.setAttribute('data-packet-id', msg.packet_id);
+                }
 
                 const timeStr = msg.time !== 'unknown' ? formatTime(msg.time) : 'unknown time';
                 const senderName = getNodeDisplayName(msg.from);
@@ -519,7 +538,26 @@
                     msgEl.classList.add('dm');
                 }
 
-                msgEl.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}`;
+                // Build status indicator for outgoing DMs
+                let statusHTML = '';
+                if (msg.from === myNodeNumber && msg.is_dm && msg.packet_id) {
+                    const status = messageStatus[msg.packet_id] || 'pending';
+                    let statusIcon = '';
+                    let statusText = '';
+                    if (status === 'pending') {
+                        statusIcon = '⏳';
+                        statusText = 'Pending';
+                    } else if (status === 'ack') {
+                        statusIcon = '✓';
+                        statusText = 'Delivered';
+                    } else if (status === 'nak') {
+                        statusIcon = '✗';
+                        statusText = 'Failed';
+                    }
+                    statusHTML = `<span class="message-status ${status}">${statusIcon} ${statusText}</span>`;
+                }
+
+                msgEl.innerHTML = `[${timeStr}] From <span title="${senderTooltip}">${senderName}</span>: ${msg.text}${statusHTML}`;
                 messagesContainer.appendChild(msgEl);
             });
 
@@ -682,6 +720,33 @@
             console.log(`Received message: ${isDM ? 'DM' : 'channel'} from ${data.from}`);
         });
 
+        socket.on('message_ack', (data) => {
+            // Update message status when ACK/NAK is received
+            const packetId = data.packet_id;
+            const status = data.status; // 'ack' or 'nak'
+
+            console.log(`Received ${status.toUpperCase()} for packet ${packetId}`);
+
+            // Update status tracking
+            messageStatus[packetId] = status;
+
+            // Find the message in allMessages and update it
+            const msgIndex = allMessages.findIndex(msg => msg.packet_id === packetId);
+            if (msgIndex !== -1) {
+                allMessages[msgIndex].ack_status = status;
+            }
+
+            // Update the UI if we're currently viewing this conversation
+            if (currentSelection !== null && currentMode === 'dms') {
+                displayMessages(allMessages.filter(msg =>
+                    msg.is_dm && (
+                        (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                        (msg.from === currentSelection && msg.to === myNodeNumber)
+                    )
+                ));
+            }
+        });
+
         function sendMessage() {
             const text = messageInput.value.trim();
 
@@ -701,13 +766,7 @@
                 recipient = currentSelection; // node number
             }
 
-            // Send the message
-            socket.emit('send_message', {
-                text: text,
-                recipient: recipient
-            });
-
-            // Add to allMessages array immediately
+            // Add to allMessages array immediately (will be updated with packet_id later)
             const now = Math.floor(Date.now() / 1000);
             const newMsg = {
                 from: myNodeNumber,
@@ -715,9 +774,40 @@
                 text: text,
                 time: now,
                 is_dm: currentMode === 'dms',
-                channel_index: currentMode === 'channels' ? currentSelection : 0
+                channel_index: currentMode === 'channels' ? currentSelection : 0,
+                packet_id: null  // Will be set when server responds
             };
+            const msgIndex = allMessages.length;
             allMessages.push(newMsg);
+
+            // Send the message and wait for packet_id
+            socket.emit('send_message', {
+                text: text,
+                recipient: recipient
+            });
+
+            // Listen for the message_sent response to get packet_id
+            socket.once('message_sent', (response) => {
+                if (response.status === 'success' && response.packet_id) {
+                    // Update the message with its packet_id
+                    allMessages[msgIndex].packet_id = response.packet_id;
+
+                    // Mark as pending for DMs
+                    if (currentMode === 'dms') {
+                        messageStatus[response.packet_id] = 'pending';
+
+                        // Refresh display to show pending status
+                        displayMessages(allMessages.filter(msg =>
+                            msg.is_dm && (
+                                (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                                (msg.from === currentSelection && msg.to === myNodeNumber)
+                            )
+                        ));
+                    }
+
+                    console.log(`Message sent with packet ID: ${response.packet_id}`);
+                }
+            });
 
             // Refresh the current view to show the sent message
             if (currentMode === 'channels') {
