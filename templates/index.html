@@ -161,6 +161,39 @@
             color: #666;
             font-size: 1.2em;
         }
+        .new-dm-btn {
+            padding: 12px 15px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+            transition: background 0.2s;
+            border-bottom: 1px solid #555;
+            text-align: left;
+            width: 100%;
+        }
+        .new-dm-btn:hover {
+            background: #1177bb;
+        }
+        .node-select-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #3c3c3c;
+            transition: background 0.2s;
+            font-size: 0.9em;
+        }
+        .node-select-item:hover {
+            background: #2d2d30;
+        }
+        .node-select-item .node-short {
+            font-weight: bold;
+            color: #4ec9b0;
+        }
+        .node-select-item .node-long {
+            color: #888;
+            font-size: 0.85em;
+        }
     </style>
 </head>
 <body>
@@ -209,6 +242,7 @@
         let channelMap = {};
         let nodeMap = {};
         let allMessages = []; // Store all messages for filtering
+        let showingNodeSelect = false; // Track if we're showing node selection
 
         // Switch between Channels and DMs mode
         function switchMode(mode) {
@@ -233,6 +267,7 @@
         // Rebuild sidebar based on current mode
         function rebuildSidebar() {
             sidebarItems.innerHTML = '';
+            showingNodeSelect = false;
 
             if (currentMode === 'channels') {
                 // Add channel items
@@ -244,6 +279,13 @@
                     sidebarItems.appendChild(item);
                 });
             } else {
+                // Add "New DM" button
+                const newDmBtn = document.createElement('button');
+                newDmBtn.className = 'new-dm-btn';
+                newDmBtn.textContent = '➕ New DM';
+                newDmBtn.onclick = showNodeSelector;
+                sidebarItems.appendChild(newDmBtn);
+
                 // Add DM items - get unique DM participants (excluding ourselves)
                 const dmParticipants = new Set();
                 allMessages.forEach(msg => {
@@ -271,10 +313,61 @@
                     const empty = document.createElement('div');
                     empty.style.padding = '20px';
                     empty.style.color = '#666';
-                    empty.textContent = 'No DM conversations yet';
+                    empty.textContent = 'No DM conversations yet. Click "New DM" to start one!';
                     sidebarItems.appendChild(empty);
                 }
             }
+        }
+
+        // Show node selector for starting a new DM
+        function showNodeSelector() {
+            showingNodeSelect = true;
+            sidebarItems.innerHTML = '';
+
+            // Add "Back" button
+            const backBtn = document.createElement('button');
+            backBtn.className = 'new-dm-btn';
+            backBtn.textContent = '⬅️ Back to DMs';
+            backBtn.onclick = rebuildSidebar;
+            sidebarItems.appendChild(backBtn);
+
+            // Add all nodes (except ourselves) as selectable items
+            const sortedNodes = Object.entries(nodeMap)
+                .filter(([nodeNum, _]) => parseInt(nodeNum) !== myNodeNumber)
+                .sort((a, b) => {
+                    // Sort by shortName
+                    const nameA = a[1].shortName || `Node ${a[0]}`;
+                    const nameB = b[1].shortName || `Node ${b[0]}`;
+                    return nameA.localeCompare(nameB);
+                });
+
+            if (sortedNodes.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.padding = '20px';
+                empty.style.color = '#666';
+                empty.textContent = 'No nodes available. Wait for nodes to appear on the network.';
+                sidebarItems.appendChild(empty);
+                return;
+            }
+
+            sortedNodes.forEach(([nodeNum, node]) => {
+                const item = document.createElement('div');
+                item.className = 'node-select-item';
+
+                const shortName = node.shortName || `Node ${nodeNum}`;
+                const longName = node.longName || '';
+
+                item.innerHTML = `<div class="node-short">${shortName}</div>`;
+                if (longName && longName !== shortName) {
+                    item.innerHTML += `<div class="node-long">${longName}</div>`;
+                }
+
+                item.onclick = () => {
+                    rebuildSidebar();
+                    selectDM(parseInt(nodeNum));
+                };
+                sidebarItems.appendChild(item);
+            });
         }
 
         // Select a channel
