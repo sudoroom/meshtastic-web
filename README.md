@@ -15,6 +15,8 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - 🏷️ **Smart message display** - Channel names, timestamps, and sender info with hover tooltips
 - 🔍 **Filtered conversations** - View only messages from the selected channel or DM
 - 🎯 **Clean DM organization** - DM sidebar shows only your conversations with other nodes
+- ➕ **Start new DMs** - Click "New DM" to select any node and start a conversation
+- 🔍 **Node filtering** - Search/filter nodes by name or ID when selecting DM recipients
 - 💿 **Persistent node storage** - Node names are saved to database and persist even when nodes go offline
 - ⚡ **Optimized database writes** - Change detection prevents unnecessary database writes
 
@@ -115,6 +117,13 @@ The interface will be available at `http://localhost:5000` or `http://<your-ip>:
   - Message history is saved and loads automatically on page refresh
   - Outgoing messages have a blue left border, incoming DMs have an orange border
 
+- **Starting New DMs:**
+  - Click the "➕ New DM" button in the DM sidebar
+  - Browse all available nodes sorted alphabetically by name
+  - Use the filter box to search by short name, long name, or node ID
+  - Click any node to start a conversation
+  - The node will appear in your DM sidebar after you send your first message
+
 - **Text-to-Speech:**
   - If `gspeak` is installed, DMs and non-MediumFast channels will be read aloud
   - MediumFast channel (channel 0) is silent due to high traffic
@@ -189,3 +198,5 @@ meshtastic-web/
    - Filters messages by selected channel or DM conversation
    - Displays sender names with tooltips showing full node details
    - Persists across page refreshes by loading from database
+   - Node selector with real-time search/filter for starting new DMs
+   - Auto-focus filter input for quick node lookup

@@ -194,6 +194,23 @@
             color: #888;
             font-size: 0.85em;
         }
+        .node-filter-input {
+            padding: 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-bottom: 2px solid #0e639c;
+            color: #d4d4d4;
+            font-family: monospace;
+            width: 100%;
+            font-size: 0.9em;
+        }
+        .node-filter-input:focus {
+            outline: none;
+            border-bottom-color: #1177bb;
+        }
+        .node-filter-input::placeholder {
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -331,6 +348,16 @@
             backBtn.onclick = rebuildSidebar;
             sidebarItems.appendChild(backBtn);
 
+            // Add filter input
+            const filterInput = document.createElement('input');
+            filterInput.type = 'text';
+            filterInput.className = 'node-filter-input';
+            filterInput.placeholder = 'Filter nodes by name or ID...';
+            filterInput.addEventListener('input', (e) => {
+                filterNodeList(e.target.value.toLowerCase());
+            });
+            sidebarItems.appendChild(filterInput);
+
             // Add all nodes (except ourselves) as selectable items
             const sortedNodes = Object.entries(nodeMap)
                 .filter(([nodeNum, _]) => parseInt(nodeNum) !== myNodeNumber)
@@ -353,6 +380,10 @@
             sortedNodes.forEach(([nodeNum, node]) => {
                 const item = document.createElement('div');
                 item.className = 'node-select-item';
+                item.setAttribute('data-node-num', nodeNum);
+                item.setAttribute('data-short-name', (node.shortName || '').toLowerCase());
+                item.setAttribute('data-long-name', (node.longName || '').toLowerCase());
+                item.setAttribute('data-node-id', (node.id || '').toLowerCase());
 
                 const shortName = node.shortName || `Node ${nodeNum}`;
                 const longName = node.longName || '';
@@ -368,6 +399,50 @@
                 };
                 sidebarItems.appendChild(item);
             });
+
+            // Auto-focus the filter input
+            setTimeout(() => filterInput.focus(), 100);
+        }
+
+        // Filter node list based on search query
+        function filterNodeList(query) {
+            const nodeItems = document.querySelectorAll('.node-select-item');
+            let visibleCount = 0;
+
+            nodeItems.forEach(item => {
+                const shortName = item.getAttribute('data-short-name') || '';
+                const longName = item.getAttribute('data-long-name') || '';
+                const nodeId = item.getAttribute('data-node-id') || '';
+                const nodeNum = item.getAttribute('data-node-num') || '';
+
+                // Check if query matches any field
+                const matches = shortName.includes(query) ||
+                               longName.includes(query) ||
+                               nodeId.includes(query) ||
+                               nodeNum.includes(query);
+
+                if (matches) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show "no results" message if nothing matches
+            const existingNoResults = document.querySelector('.no-results-message');
+            if (existingNoResults) {
+                existingNoResults.remove();
+            }
+
+            if (visibleCount === 0 && query.length > 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'no-results-message';
+                noResults.style.padding = '20px';
+                noResults.style.color = '#666';
+                noResults.textContent = `No nodes match "${query}"`;
+                sidebarItems.appendChild(noResults);
+            }
         }
 
         // Select a channel
