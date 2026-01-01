@@ -15,6 +15,8 @@ A real-time web interface for sending and receiving Meshtastic messages through 
 - 🏷️ **Smart message display** - Channel names, timestamps, and sender info with hover tooltips
 - 🔍 **Filtered conversations** - View only messages from the selected channel or DM
 - 🎯 **Clean DM organization** - DM sidebar shows only your conversations with other nodes
+- 💿 **Persistent node storage** - Node names are saved to database and persist even when nodes go offline
+- ⚡ **Optimized database writes** - Change detection prevents unnecessary database writes
 
 ## Setup
 
@@ -167,13 +169,18 @@ meshtastic-web/
    - Connects to Meshtastic device via USB serial
    - Subscribes to incoming messages via pubsub
    - Fetches channel configuration and node list from device
-   - Saves all messages to SQLite database
+   - Saves all messages and node information to SQLite database
+   - Uses change detection to only save nodes when data actually changes
    - Broadcasts messages to web clients via SocketIO
+   - Merges live node data with stored node data for persistent node names
 
 2. **Database (database.py):**
    - Stores message history with: sender, recipient, text, timestamp, channel
+   - Stores node information: node number, short name, long name, ID, last seen
    - Automatically creates tables on first run
+   - Uses connection timeout (10s) to handle concurrent access
    - Provides queries for recent messages, filtered by DM/channel
+   - Tracks node information even when nodes go offline
 
 3. **Frontend (index.html):**
    - Real-time bidirectional communication via Socket.IO
