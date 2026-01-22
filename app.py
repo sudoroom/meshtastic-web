@@ -63,7 +63,18 @@ def on_receive(packet, interface):
         # Don't speak if it's the MediumFast channel (channel 0 broadcast)
         if not (is_broadcast and channel_index == 0):
             try:
-                text_to_speak = message_data['text']
+                # Get sender's short name
+                sender_name = str(from_node_num)  # Default to node number
+                if interface and interface.nodes and from_node_num in interface.nodes:
+                    node = interface.nodes[from_node_num]
+                    user_obj = node.get('user')
+                    if user_obj and user_obj.get('shortName'):
+                        sender_name = user_obj.get('shortName')
+
+                # Add spaces between characters so TTS spells out the name
+                sender_name_spaced = ' '.join(sender_name)
+
+                text_to_speak = f"incoming message from {sender_name_spaced}. {message_data['text']}"
                 subprocess.run(['gspeak', text_to_speak], check=False)
             except Exception as e:
                 print(f"Error speaking message: {e}")
