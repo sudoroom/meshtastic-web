@@ -241,8 +241,7 @@ def send_node_list():
         # Create a copy to avoid "dictionary changed size during iteration" error
         if interface and interface.nodes:
             nodes_snapshot = dict(interface.nodes.items())
-            # Batch process nodes to reduce database writes
-            nodes_to_save = []
+            # Process nodes and save to database if new or changed
             for node_id, node in nodes_snapshot.items():
                 # Extract user data
                 user_obj = node.get('user')
@@ -252,29 +251,24 @@ def send_node_list():
                     long_name = user_obj.get('longName')
                     node_id_str = user_obj.get('id')
 
-                    nodes_to_save.append((node_num, short_name, long_name, node_id_str))
-
-                    # Update stored_nodes with current info
-                    stored_nodes[node_num] = {
-                        'shortName': short_name,
-                        'longName': long_name,
-                        'id': node_id_str
-                    }
-
-            # Save nodes only if they're new or changed
-            for node_data in nodes_to_save:
-                node_num, short_name, long_name, node_id_str = node_data
-                try:
-                    # Check if this node is new or has changed
+                    # Check if this node is new or has changed BEFORE updating stored_nodes
                     existing = stored_nodes.get(node_num)
                     if not existing or (
                         existing.get('shortName') != short_name or
                         existing.get('longName') != long_name or
                         existing.get('id') != node_id_str
                     ):
-                        upsert_node(node_num, short_name, long_name, node_id_str)
-                except Exception as e:
-                    print(f"Error saving node {node_num}: {e}")
+                        try:
+                            upsert_node(node_num, short_name, long_name, node_id_str)
+                        except Exception as e:
+                            print(f"Error saving node {node_num}: {e}")
+
+                    # Update stored_nodes with current info (for sending to client)
+                    stored_nodes[node_num] = {
+                        'shortName': short_name,
+                        'longName': long_name,
+                        'id': node_id_str
+                    }
 
         # Convert to list format for sending to client
         nodes = []
