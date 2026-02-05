@@ -27,8 +27,16 @@ def on_receive(packet, interface):
             'channel': channel_index
         }
 
+        # Debug: print packet keys to see what info is available
+        print(f"DEBUG: Packet keys: {packet.keys()}", flush=True)
+        if 'fromId' in packet:
+            print(f"DEBUG: fromId = {packet.get('fromId')}", flush=True)
+        if 'from' in packet:
+            print(f"DEBUG: from = {packet.get('from')}", flush=True)
+
         # Save sender's node info if available
         from_node_num = message_data['from']
+        print(f"DEBUG: interface.nodes has {len(interface.nodes) if interface and interface.nodes else 0} nodes", flush=True)
         if interface and interface.nodes and from_node_num in interface.nodes:
             node = interface.nodes[from_node_num]
             user_obj = node.get('user')
