@@ -94,8 +94,16 @@ def on_receive(packet, interface):
                 # Add spaces between characters so TTS spells out the name
                 sender_name_spaced = ' '.join(sender_name)
 
+                # Replace emoticons with speakable text
+                message_text = message_data['text']
+                message_text = message_text.replace(':)', 'smiley face')
+                message_text = message_text.replace(':(', 'sad face')
+                message_text = message_text.replace(':D', 'big smile')
+                message_text = message_text.replace(';)', 'wink')
+                message_text = message_text.replace('<3', 'heart')
+
                 print(f"TTS: Speaking with sender_name_spaced = '{sender_name_spaced}'")
-                text_to_speak = f"incoming message from {sender_name_spaced}. {message_data['text']}"
+                text_to_speak = f"incoming message from {sender_name_spaced}. {message_text}"
                 subprocess.run(['gspeak', text_to_speak], check=False)
             except Exception as e:
                 print(f"Error speaking message: {e}")
