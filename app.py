@@ -4,7 +4,7 @@ import meshtastic
 import meshtastic.serial_interface
 from pubsub import pub
 import subprocess
-from database import init_database, save_message, get_recent_messages, get_message_count, upsert_node, get_all_nodes
+from database import init_database, save_message, get_recent_messages, get_message_count, upsert_node, get_all_nodes, get_node
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -63,17 +63,38 @@ def on_receive(packet, interface):
         # Don't speak if it's the MediumFast channel (channel 0 broadcast)
         if not (is_broadcast and channel_index == 0):
             try:
-                # Get sender's short name
-                sender_name = str(from_node_num)  # Default to node number
+                # Get sender's short name (4 letters/numbers)
+                sender_name = None
+
+                # First try live node data
+                print(f"TTS: Looking up node {from_node_num}")
                 if interface and interface.nodes and from_node_num in interface.nodes:
                     node = interface.nodes[from_node_num]
                     user_obj = node.get('user')
+                    print(f"TTS: Found in interface.nodes, user_obj = {user_obj}")
                     if user_obj and user_obj.get('shortName'):
                         sender_name = user_obj.get('shortName')
+                        print(f"TTS: Got shortName from live data: {sender_name}")
+                else:
+                    print(f"TTS: Node {from_node_num} not in interface.nodes")
+
+                # Fallback to database if not found
+                if not sender_name:
+                    db_node = get_node(from_node_num)
+                    print(f"TTS: Database lookup result: {db_node}")
+                    if db_node and db_node.get('shortName'):
+                        sender_name = db_node.get('shortName')
+                        print(f"TTS: Got shortName from database: {sender_name}")
+
+                # Last resort: use node number
+                if not sender_name:
+                    sender_name = str(from_node_num)
+                    print(f"TTS: Falling back to node number: {sender_name}")
 
                 # Add spaces between characters so TTS spells out the name
                 sender_name_spaced = ' '.join(sender_name)
 
+                print(f"TTS: Speaking with sender_name_spaced = '{sender_name_spaced}'")
                 text_to_speak = f"incoming message from {sender_name_spaced}. {message_data['text']}"
                 subprocess.run(['gspeak', text_to_speak], check=False)
             except Exception as e:
