@@ -1,8 +1,10 @@
 import sqlite3
+import os
 from datetime import datetime
 from contextlib import contextmanager
 
-DATABASE_PATH = 'meshtastic_messages.db'
+# Use absolute path so database is always in the same location
+DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'meshtastic_messages.db')
 
 @contextmanager
 def get_db():
