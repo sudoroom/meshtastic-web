@@ -117,8 +117,8 @@ def on_receive(packet, interface):
                     sender_name = str(from_node_num)
                     print(f"TTS: Falling back to node number: {sender_name}", flush=True)
 
-                # Add spaces between characters so TTS spells out the name
-                sender_name_spaced = ' '.join(sender_name)
+                # Add periods between characters so TTS spells out each one clearly
+                sender_name_spaced = '. '.join(sender_name.upper())
 
                 # Replace emoticons with speakable text
                 message_text = message_data['text']
