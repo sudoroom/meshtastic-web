@@ -94,6 +94,12 @@ def on_receive(packet, interface):
                         sender_name = db_node.get('shortName')
                         print(f"TTS: Got shortName from database: {sender_name}", flush=True)
 
+                # Fallback to last 4 chars of fromId (e.g., "!a3059abc" -> "9abc")
+                if not sender_name and packet.get('fromId'):
+                    from_id = packet.get('fromId')
+                    sender_name = from_id[-4:]  # Last 4 characters
+                    print(f"TTS: Using last 4 chars of fromId: {sender_name}", flush=True)
+
                 # Last resort: use node number
                 if not sender_name:
                     sender_name = str(from_node_num)
