@@ -67,29 +67,29 @@ def on_receive(packet, interface):
                 sender_name = None
 
                 # First try live node data
-                print(f"TTS: Looking up node {from_node_num}")
+                print(f"TTS: Looking up node {from_node_num}", flush=True)
                 if interface and interface.nodes and from_node_num in interface.nodes:
                     node = interface.nodes[from_node_num]
                     user_obj = node.get('user')
-                    print(f"TTS: Found in interface.nodes, user_obj = {user_obj}")
+                    print(f"TTS: Found in interface.nodes, user_obj = {user_obj}", flush=True)
                     if user_obj and user_obj.get('shortName'):
                         sender_name = user_obj.get('shortName')
-                        print(f"TTS: Got shortName from live data: {sender_name}")
+                        print(f"TTS: Got shortName from live data: {sender_name}", flush=True)
                 else:
-                    print(f"TTS: Node {from_node_num} not in interface.nodes")
+                    print(f"TTS: Node {from_node_num} not in interface.nodes", flush=True)
 
                 # Fallback to database if not found
                 if not sender_name:
                     db_node = get_node(from_node_num)
-                    print(f"TTS: Database lookup result: {db_node}")
+                    print(f"TTS: Database lookup result: {db_node}", flush=True)
                     if db_node and db_node.get('shortName'):
                         sender_name = db_node.get('shortName')
-                        print(f"TTS: Got shortName from database: {sender_name}")
+                        print(f"TTS: Got shortName from database: {sender_name}", flush=True)
 
                 # Last resort: use node number
                 if not sender_name:
                     sender_name = str(from_node_num)
-                    print(f"TTS: Falling back to node number: {sender_name}")
+                    print(f"TTS: Falling back to node number: {sender_name}", flush=True)
 
                 # Add spaces between characters so TTS spells out the name
                 sender_name_spaced = ' '.join(sender_name)
