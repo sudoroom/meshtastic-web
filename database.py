@@ -132,7 +132,8 @@ def get_message_count():
 
 def upsert_node(node_num, short_name=None, long_name=None, node_id=None):
     """
-    Insert or update node information in the database
+    Insert or update node information in the database.
+    Only updates fields if the new value is not None (preserves existing data).
 
     Args:
         node_num: Node number (primary key)
@@ -146,9 +147,9 @@ def upsert_node(node_num, short_name=None, long_name=None, node_id=None):
             INSERT INTO nodes (node_num, short_name, long_name, node_id, last_seen)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(node_num) DO UPDATE SET
-                short_name = excluded.short_name,
-                long_name = excluded.long_name,
-                node_id = excluded.node_id,
+                short_name = COALESCE(excluded.short_name, nodes.short_name),
+                long_name = COALESCE(excluded.long_name, nodes.long_name),
+                node_id = COALESCE(excluded.node_id, nodes.node_id),
                 last_seen = CURRENT_TIMESTAMP
         ''', (node_num, short_name, long_name, node_id))
 

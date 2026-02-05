@@ -47,6 +47,18 @@ def on_receive(packet, interface):
                     user_obj.get('longName'),
                     user_obj.get('id')
                 )
+        else:
+            # Node not in interface.nodes - save what we know from the packet
+            # This ensures we at least have the node_id (fromId) for later lookup
+            from_id = packet.get('fromId')
+            if from_id:
+                print(f"DEBUG: Saving unknown node {from_node_num} with fromId {from_id}", flush=True)
+                upsert_node(
+                    from_node_num,
+                    None,  # shortName unknown
+                    None,  # longName unknown
+                    from_id
+                )
 
         # Save to database
         if message_data['time'] != 'unknown':
