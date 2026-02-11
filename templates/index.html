@@ -624,6 +624,25 @@
             allMessages = data.all;
             dmMessages = data.dms || [];
 
+            // Populate nodeMap from enriched message data (fills in nodes not in live node list)
+            const allMsgs = [].concat(data.all || [], data.dms || []);
+            allMsgs.forEach(msg => {
+                if (msg.from_name && !nodeMap[msg.from]) {
+                    nodeMap[msg.from] = {
+                        shortName: msg.from_name,
+                        longName: msg.from_long_name,
+                        id: msg.from_id
+                    };
+                }
+                if (msg.to_name && !nodeMap[msg.to]) {
+                    nodeMap[msg.to] = {
+                        shortName: msg.to_name,
+                        longName: msg.to_long_name,
+                        id: msg.to_id
+                    };
+                }
+            });
+
             // Rebuild sidebar to show DM conversations (if we have our node number)
             if (myNodeNumber !== null) {
                 rebuildSidebar();

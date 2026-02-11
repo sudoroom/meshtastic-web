@@ -183,9 +183,21 @@ def send_message_history(limit=100):
         channel_messages = get_recent_messages(limit=limit, is_dm=False)
         dm_messages = get_recent_messages(limit=limit, is_dm=True)
 
-        # Enrich messages with node information
+        # Enrich messages with node information from database
+        stored_nodes = get_all_nodes()
         for msg in all_messages + channel_messages + dm_messages:
             msg['channel_index'] = msg.get('channel_index', 0)
+            # Add sender/recipient node info if available
+            from_node = stored_nodes.get(msg['from'])
+            if from_node:
+                msg['from_name'] = from_node.get('shortName')
+                msg['from_long_name'] = from_node.get('longName')
+                msg['from_id'] = from_node.get('id')
+            to_node = stored_nodes.get(msg['to'])
+            if to_node:
+                msg['to_name'] = to_node.get('shortName')
+                msg['to_long_name'] = to_node.get('longName')
+                msg['to_id'] = to_node.get('id')
 
         emit('message_history', {
             'all': all_messages,
