@@ -274,6 +274,7 @@
         let channelMap = {};
         let nodeMap = {};
         let allMessages = []; // Store all messages for filtering
+        let dmMessages = []; // Store DM messages separately (may go further back in history)
         let showingNodeSelect = false; // Track if we're showing node selection
         let messageStatus = {}; // Track message status by packet_id: {packet_id: 'pending'|'ack'|'nak'}
 
@@ -320,17 +321,16 @@
                 sidebarItems.appendChild(newDmBtn);
 
                 // Add DM items - get unique DM participants (excluding ourselves)
+                // Use dmMessages which queries DMs specifically (not limited to last 100 overall messages)
                 const dmParticipants = new Set();
-                allMessages.forEach(msg => {
-                    if (msg.is_dm) {
-                        // For each DM, add the OTHER person (not ourselves)
-                        if (msg.from === myNodeNumber && msg.to !== myNodeNumber && msg.to !== 4294967295) {
-                            // We sent this DM, add the recipient
-                            dmParticipants.add(msg.to);
-                        } else if (msg.to === myNodeNumber && msg.from !== myNodeNumber) {
-                            // We received this DM, add the sender
-                            dmParticipants.add(msg.from);
-                        }
+                dmMessages.forEach(msg => {
+                    // For each DM, add the OTHER person (not ourselves)
+                    if (msg.from === myNodeNumber && msg.to !== myNodeNumber && msg.to !== 4294967295) {
+                        // We sent this DM, add the recipient
+                        dmParticipants.add(msg.to);
+                    } else if (msg.to === myNodeNumber && msg.from !== myNodeNumber) {
+                        // We received this DM, add the sender
+                        dmParticipants.add(msg.from);
                     }
                 });
 
@@ -502,11 +502,10 @@
 
             // Filter and display messages for this DM conversation
             // Show messages between me and the selected node
-            const filteredMessages = allMessages.filter(msg =>
-                msg.is_dm && (
-                    (msg.from === myNodeNumber && msg.to === nodeNum) ||
-                    (msg.from === nodeNum && msg.to === myNodeNumber)
-                )
+            // Use dmMessages which has the full DM history (not limited to last 100 overall messages)
+            const filteredMessages = dmMessages.filter(msg =>
+                (msg.from === myNodeNumber && msg.to === nodeNum) ||
+                (msg.from === nodeNum && msg.to === myNodeNumber)
             );
             displayMessages(filteredMessages);
         }
@@ -623,6 +622,7 @@
 
             // Store all messages
             allMessages = data.all;
+            dmMessages = data.dms || [];
 
             // Rebuild sidebar to show DM conversations (if we have our node number)
             if (myNodeNumber !== null) {
@@ -689,6 +689,9 @@
                 channel_index: channelIndex
             };
             allMessages.push(newMsg);
+            if (isDM) {
+                dmMessages.push(newMsg);
+            }
 
             // Update sidebar if this is a new DM conversation
             if (isDM && currentMode === 'dms') {
@@ -707,11 +710,9 @@
                     if ((data.from === myNodeNumber && data.to === currentSelection) ||
                         (data.from === currentSelection && data.to === myNodeNumber)) {
                         // Refresh current DM view
-                        displayMessages(allMessages.filter(msg =>
-                            msg.is_dm && (
-                                (msg.from === myNodeNumber && msg.to === currentSelection) ||
-                                (msg.from === currentSelection && msg.to === myNodeNumber)
-                            )
+                        displayMessages(dmMessages.filter(msg =>
+                            (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                            (msg.from === currentSelection && msg.to === myNodeNumber)
                         ));
                     }
                 }
@@ -730,19 +731,21 @@
             // Update status tracking
             messageStatus[packetId] = status;
 
-            // Find the message in allMessages and update it
+            // Find the message in allMessages and dmMessages and update it
             const msgIndex = allMessages.findIndex(msg => msg.packet_id === packetId);
             if (msgIndex !== -1) {
                 allMessages[msgIndex].ack_status = status;
             }
+            const dmMsgIndex = dmMessages.findIndex(msg => msg.packet_id === packetId);
+            if (dmMsgIndex !== -1) {
+                dmMessages[dmMsgIndex].ack_status = status;
+            }
 
             // Update the UI if we're currently viewing this conversation
             if (currentSelection !== null && currentMode === 'dms') {
-                displayMessages(allMessages.filter(msg =>
-                    msg.is_dm && (
-                        (msg.from === myNodeNumber && msg.to === currentSelection) ||
-                        (msg.from === currentSelection && msg.to === myNodeNumber)
-                    )
+                displayMessages(dmMessages.filter(msg =>
+                    (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                    (msg.from === currentSelection && msg.to === myNodeNumber)
                 ));
             }
         });
@@ -779,6 +782,9 @@
             };
             const msgIndex = allMessages.length;
             allMessages.push(newMsg);
+            if (newMsg.is_dm) {
+                dmMessages.push(newMsg);
+            }
 
             // Send the message and wait for packet_id
             socket.emit('send_message', {
@@ -797,11 +803,9 @@
                         messageStatus[response.packet_id] = 'pending';
 
                         // Refresh display to show pending status
-                        displayMessages(allMessages.filter(msg =>
-                            msg.is_dm && (
-                                (msg.from === myNodeNumber && msg.to === currentSelection) ||
-                                (msg.from === currentSelection && msg.to === myNodeNumber)
-                            )
+                        displayMessages(dmMessages.filter(msg =>
+                            (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                            (msg.from === currentSelection && msg.to === myNodeNumber)
                         ));
                     }
 
@@ -815,11 +819,9 @@
                     !msg.is_dm && msg.channel_index === currentSelection
                 ));
             } else {
-                displayMessages(allMessages.filter(msg =>
-                    msg.is_dm && (
-                        (msg.from === myNodeNumber && msg.to === currentSelection) ||
-                        (msg.from === currentSelection && msg.to === myNodeNumber)
-                    )
+                displayMessages(dmMessages.filter(msg =>
+                    (msg.from === myNodeNumber && msg.to === currentSelection) ||
+                    (msg.from === currentSelection && msg.to === myNodeNumber)
                 ));
                 // Rebuild sidebar so new DM conversation appears immediately
                 rebuildSidebar();
